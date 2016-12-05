@@ -20,8 +20,8 @@ Send code to local node server to format its style,
 
  line in your package config.
 
-3. After the install, you MUST go into the installed folder, run `npm install`
- to install npm dependencies.
+3. Althrough it should auto install later, you can run `npm install`
+ from js-format folder to install npm dependencies with no harm.
 
 ## Usage
 

@@ -51,8 +51,8 @@
 
 ;;  line in your package config.
 
-;; 3. After the install, you MUST go into the installed folder, run `npm install`
-;;  to install npm dependencies.
+;; 3. Althrough it should auto install later, you can run `npm install` from
+;;  js-format folder to install npm dependencies with no harm.
 
 ;; ## Usage
 
@@ -80,7 +80,7 @@
 
 (defvar js-format-proc-name "JSFORMAT")
 
-(defvar js-format-proc-port 8000)
+(defvar js-format-server-host "http://localhost:58000")
 
 (defvar js-format-folder
   (let ((script-file (or load-file-name
@@ -89,22 +89,25 @@
     (file-name-directory (file-truename script-file)))
   "Root folder of js-format.")
 
+(defvar js-format-setup-command "npm install"
+  "Command to install node dependencies.")
+
 (defvar js-format-command
   (let ((bin-file (expand-file-name "./server.js" js-format-folder)))
     (cons (or (executable-find "node")
               "node")
-          (list (if (file-exists-p bin-file) bin-file (error "js-format: cannot find server.js")))))
-  "The command to be run to start the js-format server. Should be a
-list of strings, giving the binary name and arguments.")
+          (list (if (file-exists-p bin-file) bin-file (error "Js-format: cannot find server.js")))))
+  "The command to be run to start the js-format server.
+Should be a list of strings, giving the binary name and arguments.")
 
 ;;;###autoload
 (defun js-format-mark-statement (&optional skip-non-statement)
+  "Mark js statement at point.
+Will avoid mark non-formattable node when SKIP-NON-STATEMENT is non-nil."
   (interactive "P")
-  (let* ((cur (point))
-         (back (js2-backward-sws))
-         (last (when (looking-at-p "[\t \n\r]") (forward-char -1)))
-         (region-beg (if (use-region-p) (region-beginning) (point-max)))
-         (region-end (if (use-region-p) (goto-char (region-end)) (point-min)))
+  (js2-backward-sws)
+  (when (looking-at-p "[\t \n\r]") (forward-char -1))
+  (let* ((region-beg (if (use-region-p) (region-beginning) (point-max)))
          (cur-node (js2-node-at-point))
          (parent cur-node)
          beg end)
@@ -125,12 +128,13 @@ list of strings, giving the binary name and arguments.")
       (goto-char end))))
 
 ;;;###autoload
-(defun js-format-buffer (&optional arg)
+(defun js-format-buffer ()
+  "Format current buffer."
   (interactive "P")
   (let ((cur (point)) start)
     (goto-char (point-min))
     ;; skip # line for cli.js
-    (while (and (not (eobp)) (looking-at-p "\\s *\#")) (next-line 1))
+    (while (and (not (eobp)) (looking-at-p "\\s *\#")) (forward-line 1))
     (skip-chars-forward "\r\n[:blank:]")
     (setq start (point))
     (goto-char cur)
@@ -140,7 +144,8 @@ list of strings, giving the binary name and arguments.")
         (js-format-region start (point-max) nil `(,line ,col) t)))))
 
 ;;;###autoload
-(defun js-format-line (&optional arg)
+(defun js-format-line ()
+  "Format line before point."
   (interactive "P")
   (save-excursion
     (let* ((pos (point))
@@ -152,6 +157,10 @@ list of strings, giving the binary name and arguments.")
 
 ;;;###autoload
 (defun js-format-region (start end &optional not-jump-p pos-list reset-after)
+  "Format region between START and END.
+When NOT-JUMP-P is non-nil, won't jump to error position when format error.
+POS-LIST is list of (line column) to restore point after format.
+RESET-AFTER is t will call `js2-reset' after format."
   (interactive (progn
                  (when (not (use-region-p))
                    (js-format-mark-statement t))
@@ -197,20 +206,9 @@ list of strings, giving the binary name and arguments.")
                     (js2-mode-reset))))))
       (js-format-run result get-formatted))))
 
-(defun js-format-result (errorlist)
-  "Switch to the buffer returned by `url-retreive'.
-    The buffer contains the raw HTTP response sent by the server."
-  ;; (decode-coding-string "\\225\\357" 'utf-8) convert  unibyte string to Chinese!!!
-  ;; (message "-------%s -%s -%s" (buffer-name) errorlist (prog1 (buffer-string) ))
-  (when (not errorlist)
-    (let ((result (prog2 (search-forward "\n\n" nil t) (buffer-substring (point) (point-max)) (kill-buffer))))
-      ;; (message "%s" (decode-coding-string result 'utf-8)))
-      (setf result (decode-coding-string result (symbol-value 'buffer-file-coding-system))))))
-
 (defun js-format-run (data done)
-  (let* ((host "http://localhost")
-         (method "POST")
-         server callback runner local-done)
+  "Call http server with DATA, and call DONE when received response."
+  (let* (server callback runner local-done)
     (setf local-done (lambda(err)
                        (if err
                            (js-format-start-server callback)
@@ -221,15 +219,15 @@ list of strings, giving the binary name and arguments.")
                      (setf callback nil)
                      (funcall runner)))
     (setf runner (lambda()
-                   ;; (http-request 'js-format-result server method `,data) ; using backquote to quote the value of data
-                   (setq server (concat host ":" (number-to-string js-format-proc-port) "/format"))
+                   (setq server (concat js-format-server-host "/format"))
                    ;; using backquote to quote the value of data
-                   (http-request local-done server method `,data)))
+                   (http-request local-done server "POST" `,data)))
     (funcall runner)))
 
 (setq debug-on-error t)
 
 (defun js-format-start-server (cb-success)
+  "Start node server when needed, call CB-SUCCESS after start succeed."
   (let* ((cmd js-format-command)
          (proc (apply #'start-process js-format-proc-name nil cmd))
          (all-output ""))
@@ -252,18 +250,20 @@ list of strings, giving the binary name and arguments.")
                                  (delete-process proc)
                                  (if (not (string-match "Cannot find module" all-output))
                                      (message "js-format: %s" (concat "Could not start node server\n" all-output))
-                                   (message "Js-format now running `npm install` in folder '%s', please wait..." js-format-folder)
-                                   (shell-command (concat "cd " js-format-folder " && cnpm install"))
+                                   (message "Js-format now running `%s` in folder '%s', please wait..." js-format-setup-command js-format-folder)
+                                   (shell-command (concat "cd " js-format-folder " && " js-format-setup-command))
                                    (if (file-exists-p (expand-file-name "node_modules/" js-format-folder))
                                        (js-format-start-server cb-success)
-                                     (message "`npm install` failed, goto folder %s, to manually install." js-format-folder)))))))
+                                     (message "`%s` failed, goto folder %s, to manually install." js-format-setup-command js-format-folder)))))))
 
 (defun js-format-server-exit ()
+  "Exit js-format node server."
   (interactive)
-  (http-request '= "http://localhost:8000/exit"))
+  (http-request '= (concat js-format-server-host "/exit")))
 
 (defun http-request (callback url &optional method data cbargs)
-  "Send ARGS to URL as a POST request."
+  "CALLBACK after request URL using METHOD (default is GET), with DATA.
+Call CALLBACK when finished, with CBARGS pass into."
   ;; Usage: (http-request 'callback "http://myhost.com" "POST" '(("name" . "your name")))
   (let ((url-request-method (or method "GET"))
         (url-request-extra-headers '(("Content-Type" . "text/plain")))

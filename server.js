@@ -4,7 +4,7 @@ const http = require('http')
 const format = require('./formatter')
 
 const errorsign = '#!!#'
-const port = 8000
+const port = 58000
 const timeout = 10e3  // 10 sec
 const server = http.createServer((req, res) => {
   let bodyString = ''
