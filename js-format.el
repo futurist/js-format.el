@@ -88,7 +88,9 @@
 
 (defvar js-format-command
   (let ((bin-file (expand-file-name "./server.js" js-format-folder)))
-    (cons "node" (list (if (file-exists-p bin-file) bin-file (error "js-format: cannot find server.js")))))
+    (cons (or (executable-find "node")
+              "node")
+          (list (if (file-exists-p bin-file) bin-file (error "js-format: cannot find server.js")))))
   "The command to be run to start the js-format server. Should be a
 list of strings, giving the binary name and arguments.")
 
@@ -233,8 +235,11 @@ list of strings, giving the binary name and arguments.")
                                  (setf js-format-proc-port nil)
                                  (if (not (string-match "Cannot find module" all-output))
                                      (message "js-format: %s" (concat "Could not start node server\n" all-output))
-                                   (message "Js-format is now running `npm install`, please wait...")
-                                   (shell-command (concat "cd \"" js-format-folder "\" && cnpm install")))))
+                                   (message "Js-format now running `npm install` in folder '%s', please wait..." js-format-folder)
+                                   (shell-command (concat "cd " js-format-folder " && npm install"))
+                                   (if (file-exists-p (expand-file-name "node_modules/" js-format-folder))
+                                       (message "`npm install` success, please re-run the format command.")
+                                     (message "`npm install` failed, goto folder %s then manually install." js-format-folder)))))
     (set-process-filter proc
                         (lambda (proc output)
                           (if (and (not (string-match "Listening on port \\([0-9][0-9]*\\)" output))
