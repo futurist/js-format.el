@@ -5,7 +5,7 @@ const format = require('./formatter')
 
 const errorsign = '#!!#'
 const port = 8000
-const timeout = 15000
+const timeout = 10e3  // 10 sec
 const server = http.createServer((req, res) => {
   let bodyString = ''
 
@@ -13,10 +13,10 @@ const server = http.createServer((req, res) => {
   req.resume()
   res.setTimeout(timeout, function () {
     console.log('server', 'request timeout')
-    res.end('js-format server request timeout, try again?')
+    res.end(errorsign + 'js-format server request timeout, try again?')
   })
   res.writeHead(200, {'Content-Type': 'text/plain'})
-  if (req.method == 'POST') {
+  if (req.method == 'POST' && req.url == '/format') {
     req.on('data', function (data) {
 			bodyString += data
 		})

@@ -179,19 +179,19 @@ list of strings, giving the binary name and arguments.")
                 (if (not success)
                     (progn (deactivate-mark)
                            (string-match "\"index\":\\([0-9]+\\)" formatted)
-                           (setq error-pos (+ start (string-to-number (or (match-string 1 formatted) "")) ))
+                           (setq error-pos (+ start (string-to-number (or (match-string 1 formatted) ""))))
                            (unless not-jump-p  (goto-char error-pos))
-                           (message "js-format error: %s" (car (split-string formatted errorsign t)) ) )
+                           (message "js-format error: %s" (car (split-string formatted errorsign t))))
                   (delete-region start end)
                   (when (string-prefix-p ";" formatted) (setq formatted (substring formatted 1)))
                   (insert formatted)
                   (delete-char -1)  ;; js-format will add new line, don't need it
-                  (js2-indent-region start (point))
+                  (let ((inhibit-message t))
+                    (js2-indent-region start (point)))
                   ;; try to restore previous position
                   (when pos-list
                     (goto-line (car pos-list))
-                    (move-to-column (car (cdr pos-list)) nil)
-                    )
+                    (move-to-column (car (cdr pos-list)) nil))
                   ;; js2-mode-reset after format
                   (when reset-after
                     (js2-mode-reset))))))
@@ -222,7 +222,7 @@ list of strings, giving the binary name and arguments.")
                      (funcall runner)))
     (setf runner (lambda()
                    ;; (http-request 'js-format-result server method `,data) ; using backquote to quote the value of data
-                   (setq server (concat host ":" (number-to-string js-format-proc-port)))
+                   (setq server (concat host ":" (number-to-string js-format-proc-port) "/format"))
                    ;; using backquote to quote the value of data
                    (http-request local-done server method `,data)))
     (funcall runner)))
@@ -234,43 +234,41 @@ list of strings, giving the binary name and arguments.")
          (proc (apply #'start-process js-format-proc-name nil cmd))
          (all-output ""))
     (set-process-query-on-exit-flag proc nil)
+    ;; monitor startup outputs
     (set-process-filter proc
                         (lambda (proc output)
-                          (if (and (not (string-match "Listening on port \\([0-9][0-9]*\\)" output))
-                                   (not (string-match "EADDRINUSE .*:\\([0-9][0-9]*\\)" output)))
+                          (if (and (not (string-match "Listening on port \\([0-9][0-9]*\\)" output)))
+                              ;; it it's failed start server, log all message
                               (setf all-output (concat all-output output))
-                            (setf js-format-proc-port (string-to-number (match-string 1 output)))
+                            (set-process-filter proc nil)
+                            (funcall cb-success)
+                            ;; monitor exit events
                             (set-process-sentinel proc (lambda (proc _event)
                                                          (delete-process proc)
-                                                         (setf js-format-proc-port nil)
                                                          (message "js-format server exit %s" _event)))
-                            (set-process-filter proc nil)
-                            (funcall cb-success))))
+                            (message "js-format server start succeed, exit with `js-format-server-exit'"))))
+    ;; monitor startup events
     (set-process-sentinel proc (lambda (_proc _event)
                                  (delete-process proc)
-                                 (setf js-format-proc-port nil)
                                  (if (not (string-match "Cannot find module" all-output))
                                      (message "js-format: %s" (concat "Could not start node server\n" all-output))
                                    (message "Js-format now running `npm install` in folder '%s', please wait..." js-format-folder)
-                                   (shell-command (concat "cd " js-format-folder " && npm install"))
+                                   (shell-command (concat "cd " js-format-folder " && cnpm install"))
                                    (if (file-exists-p (expand-file-name "node_modules/" js-format-folder))
-                                       (message "`npm install` success, please reformat again.")
-                                     (message "`npm install` failed, goto folder %s, to manually install." js-format-folder)))))
-    ;; on some macOS the set-process-filter cannot monitor process, then try make a request to check it's live
-    ;; (http-request '(lambda(status go)
-    ;;                  (if status
-    ;;                      (message "error start js-format server")
-    ;;                    (funcall go)))
-    ;;               "http://localhost:8000/" "GET" "" (list cb-success))
-    ))
+                                       (js-format-start-server cb-success)
+                                     (message "`npm install` failed, goto folder %s, to manually install." js-format-folder)))))))
+
+(defun js-format-server-exit ()
+  (interactive)
+  (http-request '= "http://localhost:8000/exit"))
 
 (defun http-request (callback url &optional method data cbargs)
   "Send ARGS to URL as a POST request."
   ;; Usage: (http-request 'callback "http://myhost.com" "POST" '(("name" . "your name")))
   (let ((url-request-method (or method "GET"))
         (url-request-extra-headers '(("Content-Type" . "text/plain")))
-        (url-request-data (base64-encode-string (encode-coding-string data 'utf-8))))
-    (url-retrieve url callback cbargs nil t)))
+        (url-request-data (base64-encode-string (encode-coding-string (or data "") 'utf-8))))
+      (url-retrieve url callback cbargs nil t)))
 
 
 
