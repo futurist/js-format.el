@@ -47,6 +47,7 @@
 ;;  If failed, ensure you have
 
 ;;     (add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/"))
+;;     ;; or (add-to-list 'load-path "folder-of-js-format.el")
 
 ;;  line in your package config.
 
@@ -54,6 +55,8 @@
 ;;  to install npm dependencies.
 
 ;; ## Usage
+
+;; After `(require 'js-format)`, below function can be used:
 
 ;; `js-format-mark-statement` to mark current statement under point.
 
@@ -77,7 +80,7 @@
 
 (defvar js-format-proc-name "JSFORMAT")
 
-(defvar js-format-proc-port nil)
+(defvar js-format-proc-port 8000)
 
 (defvar js-format-folder
   (let ((script-file (or load-file-name
@@ -208,20 +211,21 @@ list of strings, giving the binary name and arguments.")
   (let* ((host "http://localhost")
          (method "POST")
          server callback runner local-done)
-    (setf local-done (lambda(s)
-                       (let ((result (prog2 (search-forward "\n\n" nil t) (buffer-substring (point) (point-max)) (kill-buffer))))
-                         (setf result (decode-coding-string result (symbol-value 'buffer-file-coding-system)))
-                         (funcall done result))))
+    (setf local-done (lambda(err)
+                       (if err
+                           (js-format-start-server callback)
+                         (let ((result (prog2 (search-forward "\n\n" nil t) (buffer-substring (point) (point-max)) (kill-buffer))))
+                           (setf result (decode-coding-string result (symbol-value 'buffer-file-coding-system)))
+                           (funcall done result)))))
     (setf callback (lambda ()
+                     (setf callback nil)
                      (funcall runner)))
     (setf runner (lambda()
                    ;; (http-request 'js-format-result server method `,data) ; using backquote to quote the value of data
-                   (setq server (concat host ":" (number-to-string (or js-format-proc-port 8000))))
+                   (setq server (concat host ":" (number-to-string js-format-proc-port)))
                    ;; using backquote to quote the value of data
                    (http-request local-done server method `,data)))
-    (if (or (get-process js-format-proc-name) js-format-proc-port)
-        (funcall runner)
-      (js-format-start-server callback))))
+    (funcall runner)))
 
 (setq debug-on-error t)
 
@@ -230,16 +234,6 @@ list of strings, giving the binary name and arguments.")
          (proc (apply #'start-process js-format-proc-name nil cmd))
          (all-output ""))
     (set-process-query-on-exit-flag proc nil)
-    (set-process-sentinel proc (lambda (_proc _event)
-                                 (delete-process proc)
-                                 (setf js-format-proc-port nil)
-                                 (if (not (string-match "Cannot find module" all-output))
-                                     (message "js-format: %s" (concat "Could not start node server\n" all-output))
-                                   (message "Js-format now running `npm install` in folder '%s', please wait..." js-format-folder)
-                                   (shell-command (concat "cd " js-format-folder " && npm install"))
-                                   (if (file-exists-p (expand-file-name "node_modules/" js-format-folder))
-                                       (message "`npm install` success, please re-run the format command.")
-                                     (message "`npm install` failed, goto folder %s then manually install." js-format-folder)))))
     (set-process-filter proc
                         (lambda (proc output)
                           (if (and (not (string-match "Listening on port \\([0-9][0-9]*\\)" output))
@@ -251,15 +245,32 @@ list of strings, giving the binary name and arguments.")
                                                          (setf js-format-proc-port nil)
                                                          (message "js-format server exit %s" _event)))
                             (set-process-filter proc nil)
-                            (funcall cb-success))))))
+                            (funcall cb-success))))
+    (set-process-sentinel proc (lambda (_proc _event)
+                                 (delete-process proc)
+                                 (setf js-format-proc-port nil)
+                                 (if (not (string-match "Cannot find module" all-output))
+                                     (message "js-format: %s" (concat "Could not start node server\n" all-output))
+                                   (message "Js-format now running `npm install` in folder '%s', please wait..." js-format-folder)
+                                   (shell-command (concat "cd " js-format-folder " && npm install"))
+                                   (if (file-exists-p (expand-file-name "node_modules/" js-format-folder))
+                                       (message "`npm install` success, please reformat again.")
+                                     (message "`npm install` failed, goto folder %s, to manually install." js-format-folder)))))
+    ;; on some macOS the set-process-filter cannot monitor process, then try make a request to check it's live
+    ;; (http-request '(lambda(status go)
+    ;;                  (if status
+    ;;                      (message "error start js-format server")
+    ;;                    (funcall go)))
+    ;;               "http://localhost:8000/" "GET" "" (list cb-success))
+    ))
 
-(defun http-request (callback url &optional method args)
+(defun http-request (callback url &optional method data cbargs)
   "Send ARGS to URL as a POST request."
   ;; Usage: (http-request 'callback "http://myhost.com" "POST" '(("name" . "your name")))
   (let ((url-request-method (or method "GET"))
         (url-request-extra-headers '(("Content-Type" . "text/plain")))
-        (url-request-data (base64-encode-string (encode-coding-string args 'utf-8))))
-    (url-retrieve url callback)))
+        (url-request-data (base64-encode-string (encode-coding-string data 'utf-8))))
+    (url-retrieve url callback cbargs nil t)))
 
 
 

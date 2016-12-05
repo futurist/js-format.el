@@ -1,11 +1,11 @@
-#!/usr/bin/env node
+// #!/usr/bin/env node
 
 const http = require('http')
 const format = require('./formatter')
 
 const errorsign = '#!!#'
 const port = 8000
-const timeout = 10000
+const timeout = 15000
 const server = http.createServer((req, res) => {
   let bodyString = ''
 
@@ -13,7 +13,7 @@ const server = http.createServer((req, res) => {
   req.resume()
   res.setTimeout(timeout, function () {
     console.log('server', 'request timeout')
-    res.end('server hello from request timeout')
+    res.end('js-format server request timeout, try again?')
   })
   res.writeHead(200, {'Content-Type': 'text/plain'})
   if (req.method == 'POST') {
@@ -32,7 +32,7 @@ const server = http.createServer((req, res) => {
     })
   }
   if (req.method == 'GET') {
-    console.log(req.url)
+    console.log('GET', req.url)
     switch (req.url) {
     case '/exit':
       console.log('exit now')
@@ -42,6 +42,8 @@ const server = http.createServer((req, res) => {
     case '/getport':
       res.end(port + '')
       break
+		default:
+			res.end('ok', req.url)
     }
   }
 }).listen(port, function () {

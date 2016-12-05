@@ -16,6 +16,7 @@ Send code to local node server to format its style,
  If failed, ensure you have
 
     (add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/"))
+    ;; or (add-to-list 'load-path "folder-of-js-format.el")
 
  line in your package config.
 
@@ -23,6 +24,8 @@ Send code to local node server to format its style,
  to install npm dependencies.
 
 ## Usage
+
+After `(require 'js-format)`, below function can be used:
 
 `js-format-mark-statement` to mark current statement under point.
 
