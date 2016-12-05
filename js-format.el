@@ -221,7 +221,7 @@ RESET-AFTER is t will call `js2-reset' after format."
     (setf runner (lambda()
                    (setq server (concat js-format-server-host "/format"))
                    ;; using backquote to quote the value of data
-                   (http-request local-done server "POST" `,data)))
+                   (js-format-http-request local-done server "POST" `,data)))
     (funcall runner)))
 
 (setq debug-on-error t)
@@ -259,12 +259,12 @@ RESET-AFTER is t will call `js2-reset' after format."
 (defun js-format-server-exit ()
   "Exit js-format node server."
   (interactive)
-  (http-request '= (concat js-format-server-host "/exit")))
+  (js-format-http-request '= (concat js-format-server-host "/exit")))
 
-(defun http-request (callback url &optional method data cbargs)
+(defun js-format-http-request (callback url &optional method data cbargs)
   "CALLBACK after request URL using METHOD (default is GET), with DATA.
 Call CALLBACK when finished, with CBARGS pass into."
-  ;; Usage: (http-request 'callback "http://myhost.com" "POST" '(("name" . "your name")))
+  ;; Usage: (js-format-http-request 'callback "http://myhost.com" "POST" '(("name" . "your name")))
   (let ((url-request-method (or method "GET"))
         (url-request-extra-headers '(("Content-Type" . "text/plain")))
         (url-request-data (base64-encode-string (encode-coding-string (or data "") 'utf-8))))
