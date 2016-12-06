@@ -78,6 +78,9 @@
 
 ;;; Code:
 
+(require 'js2-mode)
+(require 'url)
+
 (defvar js-format-proc-name "JSFORMAT")
 
 (defvar js-format-server-host "http://localhost:58000")
@@ -241,9 +244,9 @@ RESET-AFTER is t will call `js2-reset' after format."
                             (set-process-filter proc nil)
                             (funcall cb-success)
                             ;; monitor exit events
-                            (set-process-sentinel proc (lambda (proc _event)
+                            (set-process-sentinel proc (lambda (proc event)
                                                          (delete-process proc)
-                                                         (message "js-format server exit %s" _event)))
+                                                         (message "js-format server exit %s" event)))
                             (message "js-format server start succeed, exit with `js-format-server-exit'"))))
     ;; monitor startup events
     (set-process-sentinel proc (lambda (_proc _event)
