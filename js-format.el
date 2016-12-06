@@ -78,6 +78,9 @@
 
 ;;; Code:
 
+(require 'js2-mode)
+(require 'url)
+
 (defvar js-format-proc-name "JSFORMAT")
 
 (defvar js-format-server-host "http://localhost:58000")
