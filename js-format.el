@@ -9,7 +9,7 @@
 ;; Version: 0.1.0
 ;; URL: http://github.com/futurist/js-format.el
 ;; Keywords: js, javascript, format, standard, formatter, node
-;; Package-Requires: ((emacs "24.1") (js2-mode "20160623"))
+;; Package-Requires: ((emacs "24.1") (js2-mode "20101228"))
 ;;
 
 ;;; This file is NOT part of GNU Emacs
@@ -130,7 +130,7 @@ Will avoid mark non-formattable node when SKIP-NON-STATEMENT is non-nil."
 ;;;###autoload
 (defun js-format-buffer ()
   "Format current buffer."
-  (interactive "P")
+  (interactive)
   (let ((cur (point)) start)
     (goto-char (point-min))
     ;; skip # line for cli.js
@@ -146,7 +146,7 @@ Will avoid mark non-formattable node when SKIP-NON-STATEMENT is non-nil."
 ;;;###autoload
 (defun js-format-line ()
   "Format line before point."
-  (interactive "P")
+  (interactive)
   (save-excursion
     (let* ((pos (point))
            (col (current-column))
