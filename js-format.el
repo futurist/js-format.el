@@ -134,17 +134,16 @@ Will avoid mark non-formattable node when SKIP-NON-STATEMENT is non-nil."
 (defun js-format-buffer ()
   "Format current buffer."
   (interactive)
-  (let ((cur (point)) start)
+  (let ((col (current-column))
+        (line (line-number-at-pos))
+        start)
     (goto-char (point-min))
     ;; skip # line for cli.js
     (while (and (not (eobp)) (looking-at-p "\\s *\#")) (forward-line 1))
     (skip-chars-forward "\r\n[:blank:]")
     (setq start (point))
-    (goto-char cur)
     (save-excursion
-      (let* ((col (current-column))
-             (line (line-number-at-pos)))
-        (js-format-region start (point-max) nil `(,line ,col) t)))))
+      (js-format-region start (point-max) nil `(,line ,col) t))))
 
 ;;;###autoload
 (defun js-format-line ()
@@ -226,8 +225,6 @@ RESET-AFTER is t will call `js2-reset' after format."
                    ;; using backquote to quote the value of data
                    (js-format-http-request local-done server "POST" `,data)))
     (funcall runner)))
-
-(setq debug-on-error t)
 
 (defun js-format-start-server (cb-success)
   "Start node server when needed, call CB-SUCCESS after start succeed."
