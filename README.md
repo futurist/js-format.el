@@ -1,9 +1,7 @@
 # js-format.el
 Format javascript code using node server.
 
-
-Send code to local node server to format its style,
- using [standard](http://standardjs.com)
+Send code to local node server to format its style, using [standard](http://standardjs.com)
 
 ## Install
 
@@ -11,28 +9,38 @@ Send code to local node server to format its style,
 
 2. `js-format.el` is available via MELPA and can be installed via
 
+    ``` emacs-lisp
+    ;; confirm below package config exists
+    (add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/"))
+
+    ;; then run below
     M-x package-install js-format
 
- If failed, ensure you have
+    ;; then require the package in your config
+    (require 'js-format)
+    ```
 
-    (add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/"))
-    ;; or (add-to-list 'load-path "folder-of-js-format.el")
+    Or if you don't use MELPA, download this repo, add below lines to your `init.el`
 
- line in your package config.
+    ``` emacs-lisp
+    (add-to-list 'load-path "folder-of-js-format.el")
+    (require 'js-format)
+    ```
 
-3. Althrough it should auto install later, you can run `npm install`
- from js-format folder to install npm dependencies with no harm.
+3. It should auto setup for the first time of use, but you can setup using below:
+
+    `npm install` (stored in `js-format-setup-command` var)
+
+    from **js-format folder** to install npm dependencies.
 
 ## Usage
 
-After `(require 'js-format)`, below function can be used:
+- `js-format-mark-statement` to mark current statement under point.
 
-`js-format-mark-statement` to mark current statement under point.
-
-`js-format-region` to mark current statement, pass it to *node server*, then get
+- `js-format-region` to mark current statement, pass it to *node server*, then get
  back the result code to replace the statement.
 
-`js-format-buffer` to format the whole buffer.
+- `js-format-buffer` to format the whole buffer.
 
 You may also want to bind above func to keys:
 
@@ -42,5 +50,5 @@ You may also want to bind above func to keys:
 
 ## Customize format style
 
-You can rewrite `function format(code, cb){}` function in *formatter.js* file,
+You can rewrite `format(code, cb)` function in *formatter.js* file,
  to customize your style of format.
