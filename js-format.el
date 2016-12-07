@@ -182,7 +182,7 @@ RESET-AFTER is t will call `js2-reset' after format."
       (setq end (point))
       (setq result (buffer-substring start end))
       (setf get-formatted
-            (lambda (formatted)
+            #'(lambda (formatted)
               (setq success (not (string-prefix-p errorsign formatted) ))
               (switch-to-buffer cur-buffer)
               (if (string= "" formatted)
@@ -211,16 +211,16 @@ RESET-AFTER is t will call `js2-reset' after format."
 (defun js-format-run (data done)
   "Call http server with DATA, and call DONE when received response."
   (let* (server callback runner local-done)
-    (setf local-done (lambda(err)
+    (setf local-done #'(lambda(err)
                        (if err
                            (js-format-start-server callback)
                          (let ((result (prog2 (search-forward "\n\n" nil t) (buffer-substring (point) (point-max)) (kill-buffer))))
                            (setf result (decode-coding-string result (symbol-value 'buffer-file-coding-system)))
                            (funcall done result)))))
-    (setf callback (lambda ()
+    (setf callback #'(lambda ()
                      (setf callback nil)
                      (funcall runner)))
-    (setf runner (lambda()
+    (setf runner #'(lambda()
                    (setq server (concat js-format-server-host "/format"))
                    ;; using backquote to quote the value of data
                    (js-format-http-request local-done server "POST" `,data)))
@@ -234,27 +234,28 @@ RESET-AFTER is t will call `js2-reset' after format."
     (set-process-query-on-exit-flag proc nil)
     ;; monitor startup outputs
     (set-process-filter proc
-                        (lambda (proc output)
-                          (if (and (not (string-match "Listening on port \\([0-9][0-9]*\\)" output)))
-                              ;; it it's failed start server, log all message
-                              (setf all-output (concat all-output output))
-                            (set-process-filter proc nil)
-                            (funcall cb-success)
-                            ;; monitor exit events
-                            (set-process-sentinel proc (lambda (proc event)
-                                                         (delete-process proc)
-                                                         (message "js-format server exit %s" event)))
-                            (message "js-format server start succeed, exit with `js-format-server-exit'"))))
+                        #'(lambda (proc output)
+                            (if (and (not (string-match "Listening on port \\([0-9][0-9]*\\)" output)))
+                                ;; it it's failed start server, log all message
+                                (setf all-output (concat all-output output))
+                              (set-process-filter proc nil)
+                              (funcall cb-success)
+                              ;; monitor exit events
+                              (set-process-sentinel proc #'(lambda (proc event)
+                                                             (delete-process proc)
+                                                             (message "js-format server exit %s" event)))
+                              (message "js-format server start succeed, exit with `js-format-server-exit'"))))
     ;; monitor startup events
-    (set-process-sentinel proc (lambda (_proc _event)
-                                 (delete-process proc)
-                                 (if (not (string-match "Cannot find module" all-output))
-                                     (message "js-format: %s" (concat "Could not start node server\n" all-output))
-                                   (message "Js-format now running `%s` in folder '%s', please wait..." js-format-setup-command js-format-folder)
-                                   (shell-command (concat "cd " js-format-folder " && " js-format-setup-command))
-                                   (if (file-exists-p (expand-file-name "node_modules/" js-format-folder))
-                                       (js-format-start-server cb-success)
-                                     (message "`%s` failed, goto folder %s, to manually install." js-format-setup-command js-format-folder)))))))
+    (set-process-sentinel proc #'(lambda (_proc _event)
+                                   (delete-process proc)
+                                   (if (not (string-match "Cannot find module" all-output))
+                                       (message "js-format: %s" (concat "Could not start node server\n" all-output))
+                                     (message "Js-format now running `%s` in folder '%s', please wait..." js-format-setup-command js-format-folder)
+                                     (let ((default-directory js-format-folder) result)
+                                       (setq result (shell-command-to-string js-format-setup-command))
+                                       (if (file-exists-p (expand-file-name "node_modules/" js-format-folder))
+                                           (js-format-start-server cb-success)
+                                         (message "%s\n`%s` failed, goto folder %s, to manually install.\n\n" result js-format-setup-command js-format-folder))))))))
 
 (defun js-format-server-exit ()
   "Exit js-format node server."
