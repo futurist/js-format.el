@@ -246,8 +246,8 @@ RESET-AFTER is t will call `js2-reset' after format."
                                                                (message "js-format server exit %s" event))))
                               (message "js-format server start succeed, exit with `js-format-server-exit'"))))
     ;; monitor startup events
-    (set-process-sentinel proc #'(lambda (_proc _event)
-                                   (when (eq (process-status _proc) 'exit)
+    (set-process-sentinel proc #'(lambda (proc _event)
+                                   (when (eq (process-status proc) 'exit)
                                      (if (not (string-match "Cannot find module" all-output))
                                          (message "js-format: %s" (concat "Could not start node server\n" all-output))
                                        (message "Js-format now running `%s` in folder '%s', please wait..." js-format-setup-command js-format-folder)
