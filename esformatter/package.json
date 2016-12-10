@@ -1,0 +1,16 @@
+{
+  "name": "js-format-esfmt",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "esformatter": "^0.10.0",
+    "esformatter-braces": "^1.2.1",
+    "esformatter-var-each": "^2.1.0"
+  }
+}
