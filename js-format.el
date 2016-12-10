@@ -1,14 +1,14 @@
-;;; js-format.el --- Format javascript code using node. -*- lexical-binding: t; -*-
+;;; js-format.el --- Format javascript using different code style  -*- lexical-binding: t; -*-
 
 ;; Filename: js-format.el
-;; Description: Format javascript code using node (standard as formatter)
+;; Description: Format javascript using different code style (standard, jsbeautify, esformatter)
 ;; Author: James Yang <jamesyang999@gmail.com>
 ;; Copyright (C) 2016, James Yang, all rights reserved.
-;; Time-stamp: <2016-12-05 13:57:46 James Yang>
+;; Time-stamp: <2016-12-10 15:00:04 James Yang>
 ;; Created: 2016-12-05 13:57:46
 ;; Version: 0.1.0
 ;; URL: http://github.com/futurist/js-format.el
-;; Keywords: js, javascript, format, standard, formatter, node
+;; Keywords: js, javascript, format, standard, jsbeautify, esformatter
 ;; Package-Requires: ((emacs "24.1") (js2-mode "20101228"))
 ;;
 
@@ -33,8 +33,10 @@
 
 ;;; Commentary:
 
-;; Send code to local node server to format its style,
-;;  using [standard](http://standardjs.com)
+;; Send code to local node server to format its style:
+;;  - [standard](http://standardjs.com)  # zero config
+;;  - [jsbeautify](https://github.com/beautify-web/js-beautify)  # little config
+;;  - [esformatter](https://github.com/millermedeiros/esformatter)  # total config
 
 ;; ## Install
 
@@ -73,7 +75,7 @@
 
 ;; ## Customize format style
 
-;; You can rewrite `function format(code, cb){}` function in *formatter.js* file,
+;; You can rewrite `function format(code, cb){}` in *formatter.js* file,
 ;;  to customize your style of format.
 
 ;;; Code:
@@ -81,9 +83,14 @@
 (require 'js2-mode)
 (require 'url)
 
-(defvar js-format-proc-name "JSFORMAT")
+(defvar js-format-style "standard"
+  "The js-format style to use.")
 
-(defvar js-format-server-host "http://localhost:58000")
+(defvar js-format-proc-name "JSFORMAT"
+  "Process name of NodeJS.")
+
+(defvar js-format-server-host "http://localhost:58000"
+  "Saved host for every connecting to format string.")
 
 (defvar js-format-folder
   (let ((script-file (or load-file-name
@@ -108,6 +115,7 @@ Should be a list of strings, giving the binary name and arguments.")
   "Mark js statement at point.
 Will avoid mark non-formattable node when SKIP-NON-STATEMENT is non-nil."
   (interactive "P")
+  (unless js2-mode-ast (error "Not in js2-mode, You should mark region manually."))
   (js2-backward-sws)
   (when (looking-at-p "[\t \n\r]") (forward-char -1))
   (let* ((region-beg (if (use-region-p) (region-beginning) (point-max)))
@@ -115,10 +123,10 @@ Will avoid mark non-formattable node when SKIP-NON-STATEMENT is non-nil."
          (parent cur-node)
          beg end)
     ;; blacklist: 33=prop-get, 39=name, 40=number, 45=keyword
-    ;; 128=scope, 108=arrow function, 66=object
+    ;; 128=scope, 108=arrow function, 66=object, 123=catch
     (while (and parent (or
                         (memq (js2-node-type parent) '(33 39 40 45)) ; always skip name, prop-get, number, keyword
-                        (and skip-non-statement (memq (js2-node-type parent) '(66))) ;pure object will fail format
+                        (and skip-non-statement (memq (js2-node-type parent) '(66 123))) ;pure object will fail format
                         ;; (and (= (js2-node-type parent) 108) (eq (js2-function-node-form parent) 'FUNCTION_ARROW)) ;skip arrow function
                         (<= region-beg (js2-node-abs-pos parent))))
       (setq parent (js2-node-parent-stmt parent)))
@@ -143,7 +151,7 @@ Will avoid mark non-formattable node when SKIP-NON-STATEMENT is non-nil."
     (skip-chars-forward "\r\n[:blank:]")
     (setq start (point))
     (save-excursion
-      (js-format-region start (point-max) nil `(,line ,col) t))))
+      (js-format-region start (point-max) nil `(,line ,col)))))
 
 ;;;###autoload
 (defun js-format-line ()
@@ -158,11 +166,10 @@ Will avoid mark non-formattable node when SKIP-NON-STATEMENT is non-nil."
       (js-format-region (point) pos nil `(,line ,col)))))
 
 ;;;###autoload
-(defun js-format-region (start end &optional not-jump-p pos-list reset-after)
+(defun js-format-region (start end &optional not-jump-p pos-list)
   "Format region between START and END.
 When NOT-JUMP-P is non-nil, won't jump to error position when format error.
-POS-LIST is list of (line column) to restore point after format.
-RESET-AFTER is t will call `js2-reset' after format."
+POS-LIST is list of (line column) to restore point after format."
   (interactive (progn
                  (when (not (use-region-p))
                    (js-format-mark-statement t))
@@ -196,16 +203,16 @@ RESET-AFTER is t will call `js2-reset' after format."
                   (delete-region start end)
                   (when (string-prefix-p ";" formatted) (setq formatted (substring formatted 1)))
                   (insert formatted)
-                  (delete-char -1)  ;; js-format will add new line, don't need it
+                  (setq end (point))
                   (let ((inhibit-message t))
-                    (js2-indent-region start (point)))
+                    (goto-char start)
+                    (set-mark-command nil)
+                    (goto-char end)
+                    (indent-for-tab-command))
                   ;; try to restore previous position
                   (when pos-list
                     (goto-line (car pos-list))
-                    (move-to-column (car (cdr pos-list)) nil))
-                  ;; js2-mode-reset after format
-                  (when reset-after
-                    (js2-mode-reset))))))
+                    (move-to-column (car (cdr pos-list)) nil))))))
       (js-format-run result get-formatted))))
 
 (defun js-format-run (data done)
@@ -221,9 +228,9 @@ RESET-AFTER is t will call `js2-reset' after format."
                      (setf callback nil)
                      (funcall runner)))
     (setf runner #'(lambda()
-                   (setq server (concat js-format-server-host "/format"))
-                   ;; using backquote to quote the value of data
-                   (js-format-http-request local-done server "POST" `,data)))
+                     (setq server (concat js-format-server-host "/format/" js-format-style))
+                     ;; using backquote to quote the value of data
+                     (js-format-http-request local-done server "POST" `,data)))
     (funcall runner)))
 
 (defun js-format-start-server (cb-success)
@@ -257,6 +264,26 @@ RESET-AFTER is t will call `js2-reset' after format."
                                              (js-format-start-server cb-success)
                                            (message "%s\n`%s` failed, goto folder %s, to manually install.\n\n" result js-format-setup-command js-format-folder)))))))))
 
+(defun js-format-setup (&optional style)
+  "Exit js-format node server."
+  (interactive (list (read-string "js-format style: ")))
+  (unless (or (not (stringp style))
+              (string= "" style))
+    (setq js-format-style style))
+  (setq style js-format-style)
+  (message "[js-format] setup in background for style: %s, plesae waiting for the result" style)
+  (let (callback local-done)
+    (setf callback #'(lambda()
+                       (js-format-setup style)))
+    (setf local-done #'(lambda(err)
+                         (if err
+                             (js-format-start-server callback)
+                           (let ((result (prog2 (search-forward "\n\n" nil t)
+                                             (buffer-substring (point) (point-max)))))
+                             (message "[js-format-setup] %s" result)
+                             ))))
+    (js-format-http-request local-done (concat js-format-server-host "/setup/" style))))
+
 (defun js-format-server-exit ()
   "Exit js-format node server."
   (interactive)
@@ -269,7 +296,7 @@ Call CALLBACK when finished, with CBARGS pass into."
   (let ((url-request-method (or method "GET"))
         (url-request-extra-headers '(("Content-Type" . "text/plain")))
         (url-request-data (base64-encode-string (encode-coding-string (or data "") 'utf-8))))
-      (url-retrieve url callback cbargs nil t)))
+    (url-retrieve url callback cbargs nil t)))
 
 
 

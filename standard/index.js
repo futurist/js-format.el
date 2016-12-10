@@ -2,7 +2,7 @@ const loc = require('src-location')
 const standard = require('standard')
 
 /**
- * format js code using standard, then response back to user
+ * format js code, then response back to user
  * @param {string} code the string of code to format
  * @param {function} cb callback to call when format finished: (err, out)->any
  * @returns {any}
@@ -19,7 +19,8 @@ function format(code, cb) {
 			error.index = loc.locationToIndex(code, error.line, error.column) - 1
 			console.log(JSON.stringify(error))
 		}
-		cb(error, ret.output)
+		const output = ret.output || ''
+		cb(error, output.replace(/\n+$/g, ''))
 	})
 }
 
