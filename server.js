@@ -12,19 +12,21 @@ const timeout = 10e3  // 10 sec
 
 const server = http.createServer((req, res) => {
   let bodyString = ''
-  const timeoutFn = function (socket) {
+  const timeoutFn = withErrSign => socket => {
     console.log('server', 'request timeout')
+		const sign = withErrSign ? errorsign : ''
+		let msg = ''
 		// if setup in process, kill it!
     if (styleObj && styleObj.setupProc) {
       styleObj.status = 'setting up timeout'
-			styleObj.setupProc.kill()
-			delete styleObj.setupProc
+			/* some times kill not work, better to let it exit self */
+			// styleObj.setupProc.kill('SIGINT')
+			// delete styleObj.setupProc
+			msg = ' But setup process still run in background.'
     }
-    res.end(errorsign + 'js-format server request timeout.')
+    res.end(sign + 'js-format server request timeout.' + msg)
   }
   req.resume()
-	// prevent node died to set a timeout
-  res.setTimeout(timeout, timeoutFn)
   res.writeHead(200, {'Content-Type': 'text/plain'})
   if (req.url == '/') {
     return res.end('js-format server')
@@ -53,7 +55,7 @@ const server = http.createServer((req, res) => {
 			: {}
   }
 
-  const setupStyle = function (withErrSign) {
+  const setupStyle = withErrSign => {
 		// status list [valid, invalid, setup]
 		// should return one status above
 		// the caller MUST check styleObj.status result
@@ -80,7 +82,7 @@ const server = http.createServer((req, res) => {
 			const timeout = styleSetup.timeout || 5 * 60e3
       console.log('setup', style, 'using', command, 'timeout is', timeout)
 			// 1 min install
-      res.setTimeout(timeout, timeoutFn)
+      res.setTimeout(timeout, timeoutFn(withErrSign))
       styleObj.status = 'setting up. command: ' + command + ', timeout: ' + timeout
       styleObj.setupProc = exec(command, {cwd: path.join(__dirname, styleFolder)}, function (err, stdout, stderr) {
 				delete styleObj.setupProc
@@ -99,6 +101,8 @@ const server = http.createServer((req, res) => {
   }
 
   if (req.method == 'POST' && segments[1] == 'format' && styleFolder) {
+		// prevent node died to set a timeout
+		res.setTimeout(timeout, timeoutFn(true))
     if (typeof styleObj.formatter !== 'function') {
 			// status unknow, get status using setupStyle
       if (!styleObj.status) setupStyle(true)
