@@ -89,6 +89,7 @@ const server = http.createServer((req, res) => {
         console.log(err, stdout, stderr)
 				// now should can safely require
         styleObj.formatter = require(styleEntry)
+				styleObj.status = 'valid'
 				// response timeout already?
         if (res.finished) return console.log('setup finished with request timeout')
         if (err) {
