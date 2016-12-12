@@ -1,7 +1,7 @@
-;;; js-format.el --- Format or transform code style using different javascript formatter  -*- lexical-binding: t; -*-
+;;; js-format.el --- Format or transform code style using NodeJS server with different javascript formatter  -*- lexical-binding: t; -*-
 
 ;; Filename: js-format.el
-;; Description: Format or transform code style using different javascript formatter (standard, jsbeautify, esformatter, etc.)
+;; Description: Format or transform code style using NodeJS server with different javascript formatter (standard, jsbeautify, esformatter, etc.)
 ;; Author: James Yang <jamesyang999@gmail.com>
 ;; Copyright (C) 2016, James Yang, all rights reserved.
 ;; Time-stamp: <2016-12-12 19:07:15 James Yang>
@@ -90,6 +90,20 @@
 ;; 3. Entry file should have `function format(code, cb){}` exported as a node module.
 ;; 4. Add a style name and the folder into "styles.json" file to register the new style.
 
+;; ## Why use NodeJS Server instead of `call-process' etc.?
+
+;; At first I'm using `call-process' to run a JS code, but every time
+;; there's a lag, since starting a new node is a heavy operation, and
+;; the output/input pipe not easily controlled if run as deamon, with
+;; need of formatting region constantly, or even, auto formatting when
+;; press RETURN, that lag is fatal.
+
+;; Using server instead, giving a fast response from socket, and you
+;; can format remotely (setup a format server in your workplace).
+
+;; NodeJS is a good choise for using NPM, with rich module to import,
+;; and easy to write a new style with javascript.
+
 ;;; Code:
 
 (require 'js2-mode)
@@ -127,7 +141,7 @@ Should be a list of strings, giving the binary name and arguments.")
   "Mark js statement at point.
 Will avoid mark non-formattable node when SKIP-NON-STATEMENT is non-nil."
   (interactive "P")
-  (unless js2-mode-ast (error "Not in js2-mode, You should mark region manually."))
+  (unless js2-mode-ast (error "Not in js2-mode, You should mark region manually"))
   (js2-backward-sws)
   (when (looking-at-p "[\t \n\r]") (forward-char -1))
   (let* ((region-beg (if (use-region-p) (region-beginning) (point-max)))
@@ -220,7 +234,7 @@ POS-LIST is list of (line column) to restore point after format."
                     (goto-char start)
                     (set-mark-command nil)
                     (goto-char end)
-                    (indent-for-tab-command))
+                    (call-interactively 'indent-for-tab-command))
                   ;; try to restore previous position
                   (when pos-list
                     (goto-line (car pos-list))
@@ -277,7 +291,9 @@ POS-LIST is list of (line column) to restore point after format."
                                            (message "%s\n`%s` failed, goto folder %s, to manually install.\n\n" result js-format-setup-command js-format-folder)))))))))
 
 (defun js-format-setup (&optional style)
-  "Exit js-format node server."
+  "Switch to and setup the active format style to STYLE.
+If style is empty or nil, call the style's setup command to setup.
+RETURN the current active style."
   (interactive (list (read-string "js-format style: ")))
   (unless (or (not (stringp style))
               (string= "" style))
