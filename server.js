@@ -34,6 +34,8 @@ const server = http.createServer((req, res) => {
   let styleObj = {}
   let styleFolder
   let styleEntry
+	let stylePkg
+	let styleSetup
 
   if (style) {
     styleObj = styles[style]
@@ -43,6 +45,10 @@ const server = http.createServer((req, res) => {
 		// style base folder
     styleFolder = styleObj.folder || style
     styleEntry = './' + styleFolder + '/' + (styleObj.entry || '')
+		stylePkg = require('./' + styleFolder + '/package.json')
+		styleSetup = stylePkg.setup && typeof stylePkg.setup=='object'
+			? stylePkg.setup
+			: {}
   }
 
   const setupStyle = function (withErrSign) {
@@ -62,12 +68,12 @@ const server = http.createServer((req, res) => {
         return res.end(JSON.stringify(err))
       }
 			// error is module_not_found, run npm setup
-      const command = 'npm setup'
-      const timeout = styleObj.setupTimeout || 60e3
-      console.log('setup', style, 'using', command, 'timeout is', timeout)
+			const command = styleSetup.command || 'npm install'
+			const timeout = styleSetup.timeout || 60e3
+      console.log('setup', style, 'using', command, 'timeout is', timeout);
 			// 1 min install
       res.setTimeout(timeout, timeoutFn)
-      styleObj.status = 'setting-up'
+      styleObj.status = 'setting up'
       styleObj.setupProc = exec(command, {cwd: path.join(__dirname, styleFolder)}, function (err, stdout, stderr) {
 				delete styleObj.setupProc
         console.log(err, stdout, stderr)

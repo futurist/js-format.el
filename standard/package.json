@@ -8,8 +8,11 @@
     "standard": "*"
   },
   "devDependencies": {},
+  "setup": {
+    "command": "cnpm install",
+    "timeout": 2000
+  },
   "scripts": {
-    "setup": "cnpm install",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "James Yang <jamesyang999@gmail.com>",

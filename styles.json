@@ -1,7 +1,6 @@
 {
   "standard": {
-    "folder": "standard",
-    "setupTimeout": 2000
+    "folder": "standard"
   },
   "jsb": {
     "folder": "jsbeautify"
