@@ -10,6 +10,11 @@ const errorsign = '#!!#'
 const port = 58000
 const timeout = 10e3  // 10 sec
 
+// helper function: type checking
+function is (object, type) {
+  return {}.toString.call(object) === '[object ' + type + ']'
+}
+
 const server = http.createServer((req, res) => {
   let bodyString = ''
   const timeoutFn = withErrSign => socket => {
@@ -50,9 +55,12 @@ const server = http.createServer((req, res) => {
     styleFolder = styleObj.folder || style
     styleEntry = './' + styleFolder + '/' + (styleObj.entry || '')
 		stylePkg = require('./' + styleFolder + '/package.json')
-		styleSetup = stylePkg.setup && typeof stylePkg.setup=='object'
-			? stylePkg.setup
-			: {}
+		// for setup: first use root package, then use style package
+		styleSetup = is(styleObj.setup, 'Object')
+			? styleObj.setup
+			: (is(stylePkg.setup, 'Object')
+				 ? stylePkg.setup
+				 : {})
   }
 
   const setupStyle = withErrSign => {
