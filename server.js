@@ -16,7 +16,7 @@ function is (object, type) {
 }
 
 function send(res, ...args) {
-	if(res.finished){
+	if(res.finished) {
 		console.log('[response] already sent, the msg:', args)
 	} else {
 		console.log('[response] with msg:', args)
@@ -27,7 +27,7 @@ function send(res, ...args) {
 const server = http.createServer((req, res) => {
   let bodyString = ''
   const timeoutFn = withErrSign => socket => {
-    console.log('server', 'request timeout')
+    console.log('server request timeout')
 		const sign = withErrSign ? errorsign : ''
 		let msg = ''
 		// if setup in process, kill it!
@@ -36,7 +36,7 @@ const server = http.createServer((req, res) => {
 			/* some times kill not work, better to let it exit self */
 			// styleObj.setupProc.kill('SIGINT')
 			// delete styleObj.setupProc
-			msg = ' But setup process still run in background.'
+			msg = ' But setup process still run in background. You can kill it manually.'
     }
     send(res, sign, 'js-format server request timeout.', msg)
   }
@@ -107,8 +107,6 @@ const server = http.createServer((req, res) => {
 				// now should can safely require
         styleObj.formatter = require(styleEntry)
 				styleObj.status = 'valid'
-				// response timeout already?
-        if (res.finished) return console.log('setup finished with request timeout')
         if (err) {
           return send(res, sign + '"'+style+'"' + command + ' error \n' + JSON.stringify(err))
         }
@@ -126,8 +124,7 @@ const server = http.createServer((req, res) => {
       if (!styleObj.status) setupStyle(true)
 			// formatter is not valid, halt
       if (styleObj.status != 'valid') {
-        if (!res.finished) send(res, errorsign + '"' + style + '"' + ' is in status: ' + styleObj.status)
-        return console.log(style, 'formatter invalid')
+				return send(res, errorsign + '"' + style + '"' + ' is in status: ' + styleObj.status)
       }
 			// styleObj.formatter now available
     }
@@ -141,7 +138,6 @@ const server = http.createServer((req, res) => {
       code = new Buffer(code, 'base64').toString()
       styleObj.formatter(code, (err, result) => {
         console.log(err, result)
-        if (res.finished) return console.log('timeout, but result is', result)
         if (err) send(res, errorsign + JSON.stringify(err))
         else send(res, result)
       })

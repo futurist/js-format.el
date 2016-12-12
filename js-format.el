@@ -33,7 +33,7 @@
 
 ;;; Commentary:
 
-;; Send code to local node server to format its style:
+;; Send code to local node server to format its style, now with style formatters:
 ;;  - [standard](http://standardjs.com)  # zero config
 ;;  - [jsbeautify](https://github.com/beautify-web/js-beautify)  # little config
 ;;  - [esformatter](https://github.com/millermedeiros/esformatter)  # total config
@@ -89,7 +89,7 @@
 (defvar js-format-proc-name "JSFORMAT"
   "Process name of NodeJS.")
 
-(defvar js-format-host "http://localhost:58000"
+(defvar js-format-server "http://localhost:58000"
   "Saved host for every connecting to format string.")
 
 (defvar js-format-folder
@@ -228,7 +228,7 @@ POS-LIST is list of (line column) to restore point after format."
                      (setf callback nil)
                      (funcall runner)))
     (setf runner #'(lambda()
-                     (setq server (concat js-format-host "/format/" js-format-style))
+                     (setq server (concat js-format-server "/format/" js-format-style))
                      ;; using backquote to quote the value of data
                      (js-format-http-request local-done server "POST" `,data)))
     (funcall runner)))
@@ -283,12 +283,12 @@ POS-LIST is list of (line column) to restore point after format."
                              (when (and (stringp result) (not (string= result "")))
                                (message "[js-format] setup result:\n%s" result))))))
     (let ((inhibit-message t))
-      (js-format-http-request local-done (concat js-format-host "/setup/" style)))))
+      (js-format-http-request local-done (concat js-format-server "/setup/" style)))))
 
 (defun js-format-exit ()
   "Exit js-format node server."
   (interactive)
-  (js-format-http-request '= (concat js-format-host "/exit")))
+  (js-format-http-request '= (concat js-format-server "/exit")))
 
 (defun js-format-http-request (callback url &optional method data cbargs)
   "CALLBACK after request URL using METHOD (default is GET), with DATA.
