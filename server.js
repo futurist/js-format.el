@@ -82,9 +82,10 @@ const server = http.createServer((req, res) => {
 				// response timeout already?
         if (res.finished) return console.log('setup finished with request timeout')
         if (err) {
-          return res.end(sign + command + ' error \n' + JSON.stringify(err))
+          return res.end(sign + '"'+style+'"' + command + ' error \n' + JSON.stringify(err))
         }
-        res.end(sign + command + ' result:\n[stdout]:\n' + stdout + '\n[stderr]:\n' + stderr)
+        // res.end(sign + command + ' result:\n[stdout]:\n' + stdout + '\n[stderr]:\n' + stderr)
+				res.end(sign + '"'+style+'"' + command + ' setup succeed, the fomatter is ready.' )
       })
     }
   }
