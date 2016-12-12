@@ -251,7 +251,7 @@ POS-LIST is list of (line column) to restore point after format."
                               (set-process-sentinel proc #'(lambda (proc event)
                                                              (when (eq (process-status proc) 'exit)
                                                                (message "js-format server exit %s" event))))
-                              (message "js-format server start succeed, exit with `js-format-exit'"))))
+                              (message "js-format server start succeed, quit with `js-format-exit'"))))
     ;; monitor startup events
     (set-process-sentinel proc #'(lambda (proc _event)
                                    (when (eq (process-status proc) 'exit)
@@ -280,8 +280,10 @@ POS-LIST is list of (line column) to restore point after format."
                              (js-format-start-server callback)
                            (let ((result (prog2 (search-forward "\n\n" nil t)
                                              (buffer-substring (point) (point-max)))))
-                             (when result (message "[js-format] setup result:\n%s" result))))))
-    (js-format-http-request local-done (concat js-format-host "/setup/" style))))
+                             (when (and (stringp result) (not (string= result "")))
+                               (message "[js-format] setup result:\n%s" result))))))
+    (let ((inhibit-message t))
+      (js-format-http-request local-done (concat js-format-host "/setup/" style)))))
 
 (defun js-format-exit ()
   "Exit js-format node server."

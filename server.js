@@ -14,11 +14,13 @@ const server = http.createServer((req, res) => {
   let bodyString = ''
   const timeoutFn = function (socket) {
     console.log('server', 'request timeout')
-    const msg = ''
+		// if setup in process, kill it!
     if (styleObj && styleObj.setupProc) {
-      msg = ' Bug the setup proc still working, `js-format-exit\' to terminate.'
+      styleObj.status = 'setting up timeout'
+			styleObj.setupProc.kill()
+			delete styleObj.setupProc
     }
-    res.end(errorsign + 'js-format server request timeout.' + msg)
+    res.end(errorsign + 'js-format server request timeout.')
   }
   req.resume()
 	// prevent node died to set a timeout
@@ -55,12 +57,17 @@ const server = http.createServer((req, res) => {
 		// status list [valid, invalid, setup]
 		// should return one status above
 		// the caller MUST check styleObj.status result
-    console.log('setting up', style)
+		if(/^setting up/.test(styleObj.status)) {
+			return res.end('"'+style+'"' + ' already in status: ' + styleObj.status)
+		}
+    console.log('setting up', style, styleObj.status)
     const sign = withErrSign ? errorsign : ''
     try {
       styleObj.formatter = require(styleEntry)
       styleObj.status = 'valid'
-			// res.end should be called by caller for furthur msg
+			if(!withErrSign) res.end('"'+style+'"' + ' now is the active formatter.')
+			// in POST formatter, res.end cannot be called
+			// res.end should be called for formatting code
     } catch (err) {
 			// check err type
       if (err.code !== 'MODULE_NOT_FOUND') {
@@ -69,11 +76,12 @@ const server = http.createServer((req, res) => {
       }
 			// error is module_not_found, run npm setup
 			const command = styleSetup.command || 'npm install'
-			const timeout = styleSetup.timeout || 60e3
-      console.log('setup', style, 'using', command, 'timeout is', timeout);
+			// timeout: 5 mins enough?
+			const timeout = styleSetup.timeout || 5 * 60e3
+      console.log('setup', style, 'using', command, 'timeout is', timeout)
 			// 1 min install
       res.setTimeout(timeout, timeoutFn)
-      styleObj.status = 'setting up'
+      styleObj.status = 'setting up. command: ' + command + ', timeout: ' + timeout
       styleObj.setupProc = exec(command, {cwd: path.join(__dirname, styleFolder)}, function (err, stdout, stderr) {
 				delete styleObj.setupProc
         console.log(err, stdout, stderr)
@@ -122,7 +130,7 @@ const server = http.createServer((req, res) => {
     switch (segments[1]) {
     case 'setup':
       if (!styleFolder) return res.end('no style configured')
-      setupStyle()
+      setupStyle(false)
       if (styleObj.status == 'valid') {
         res.end('')
       }
@@ -134,6 +142,7 @@ const server = http.createServer((req, res) => {
         const obj = styles[style]
         if (obj && obj.setupProc) {
           obj.setupProc.kill()
+					delete obj.setupProc
         }
       })
       setTimeout(_ => {

@@ -9,7 +9,7 @@
   },
   "devDependencies": {},
   "setup": {
-    "command": "cnpm install",
+    "command": "npm install",
     "timeout": 2000
   },
   "scripts": {
