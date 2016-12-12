@@ -89,7 +89,7 @@
 (defvar js-format-proc-name "JSFORMAT"
   "Process name of NodeJS.")
 
-(defvar js-format-server-host "http://localhost:58000"
+(defvar js-format-host "http://localhost:58000"
   "Saved host for every connecting to format string.")
 
 (defvar js-format-folder
@@ -228,7 +228,7 @@ POS-LIST is list of (line column) to restore point after format."
                      (setf callback nil)
                      (funcall runner)))
     (setf runner #'(lambda()
-                     (setq server (concat js-format-server-host "/format/" js-format-style))
+                     (setq server (concat js-format-host "/format/" js-format-style))
                      ;; using backquote to quote the value of data
                      (js-format-http-request local-done server "POST" `,data)))
     (funcall runner)))
@@ -251,7 +251,7 @@ POS-LIST is list of (line column) to restore point after format."
                               (set-process-sentinel proc #'(lambda (proc event)
                                                              (when (eq (process-status proc) 'exit)
                                                                (message "js-format server exit %s" event))))
-                              (message "js-format server start succeed, exit with `js-format-server-exit'"))))
+                              (message "js-format server start succeed, exit with `js-format-exit'"))))
     ;; monitor startup events
     (set-process-sentinel proc #'(lambda (proc _event)
                                    (when (eq (process-status proc) 'exit)
@@ -281,12 +281,12 @@ POS-LIST is list of (line column) to restore point after format."
                            (let ((result (prog2 (search-forward "\n\n" nil t)
                                              (buffer-substring (point) (point-max)))))
                              (when result (message "[js-format] setup result:\n%s" result))))))
-    (js-format-http-request local-done (concat js-format-server-host "/setup/" style))))
+    (js-format-http-request local-done (concat js-format-host "/setup/" style))))
 
-(defun js-format-server-exit ()
+(defun js-format-exit ()
   "Exit js-format node server."
   (interactive)
-  (js-format-http-request '= (concat js-format-server-host "/exit")))
+  (js-format-http-request '= (concat js-format-host "/exit")))
 
 (defun js-format-http-request (callback url &optional method data cbargs)
   "CALLBACK after request URL using METHOD (default is GET), with DATA.

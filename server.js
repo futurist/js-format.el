@@ -14,7 +14,11 @@ const server = http.createServer((req, res) => {
   let bodyString = ''
 	const timeoutFn = function (socket) {
 		console.log('server', 'request timeout')
-		res.end(errorsign + 'js-format server request timeout, try again?')
+		const msg = ''
+		if(styleObj && styleObj.setupProc){
+			msg = ' Bug the setup proc still working, `js-format-exit\' to terminate.'
+		}
+		res.end(errorsign + 'js-format server request timeout.' + msg)
 	}
   req.resume()
 	// prevent node died to set a timeout
@@ -50,6 +54,7 @@ const server = http.createServer((req, res) => {
 		try {
 			styleObj.formatter = require(styleEntry)
 			styleObj.status = 'valid'
+			// res.end should be called by caller for furthur msg
 		} catch(err) {
 			// check err type
 			if(err.code !== 'MODULE_NOT_FOUND') {
@@ -57,12 +62,12 @@ const server = http.createServer((req, res) => {
 				return res.end(JSON.stringify(err))
 			}
 			// error is module_not_found, run npm install
-			const command = styleObj.setup || 'npm install'
+			const command = styleObj.setup || 'cnpm install'
 			console.log('setup', style, 'using', command)
 			// 1 min install
 			res.setTimeout(styleObj.setupTimeout || 60e3, timeoutFn)
 			styleObj.status = 'setting-up'
-			const child = exec(command, {cwd: path.join(__dirname, styleFolder)}, function(err, stdout, stderr) {
+			styleObj.setupProc = exec(command, {cwd: path.join(__dirname, styleFolder)}, function(err, stdout, stderr) {
 				console.log(err, stdout, stderr)
 				// now should can safely require
 				styleObj.formatter = require(styleEntry)
@@ -116,7 +121,15 @@ const server = http.createServer((req, res) => {
 		case 'exit':
 			console.log('exit now')
 			res.end('')
-			process.exit(0)
+			Object.keys(styles).forEach(style=>{
+				const obj = styles[style]
+				if(obj && obj.setupProc) {
+					obj.setupProc.kill()
+				}
+			})
+			setTimeout(_ => {
+				process.exit(0)
+			}, 300)
 			break
 		case 'getport':
 			res.end(port + '')
