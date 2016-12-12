@@ -1,10 +1,10 @@
-;;; js-format.el --- Format javascript using different code style  -*- lexical-binding: t; -*-
+;;; js-format.el --- Format or transform code style using different javascript formatter  -*- lexical-binding: t; -*-
 
 ;; Filename: js-format.el
-;; Description: Format javascript using different code style (standard, jsbeautify, esformatter)
+;; Description: Format or transform code style using different javascript formatter (standard, jsbeautify, esformatter, etc.)
 ;; Author: James Yang <jamesyang999@gmail.com>
 ;; Copyright (C) 2016, James Yang, all rights reserved.
-;; Time-stamp: <2016-12-10 15:00:04 James Yang>
+;; Time-stamp: <2016-12-12 19:07:15 James Yang>
 ;; Created: 2016-12-05 13:57:46
 ;; Version: 0.1.0
 ;; URL: http://github.com/futurist/js-format.el
@@ -33,7 +33,7 @@
 
 ;;; Commentary:
 
-;; Send code to local node server to format its style, now with style formatters:
+;; Send region or buffer to a format server (will setup localhost:58000 by default), with below formatters:
 ;;  - [standard](http://standardjs.com)  # zero config
 ;;  - [jsbeautify](https://github.com/beautify-web/js-beautify)  # little config
 ;;  - [esformatter](https://github.com/millermedeiros/esformatter)  # total config
@@ -53,16 +53,26 @@
 
 ;;  line in your package config.
 
-;; 3. Althrough it should auto install later, you can run `npm install` from
-;;  js-format folder to install npm dependencies with no harm.
+;; 3. It should auto setup for the first time of use, according to different style package's setup command.
 
 ;; ## Usage
 
 ;; After `(require 'js-format)`, below function can be used:
 
-;; `js-format-mark-statement` to mark current statement under point.
+;; `js-format-setup` to switch and setup style (default value: `"standard"`).
+;; To make different mode using different format style, you can add below:
 
-;; `js-format-region` to mark current statement, pass it to *node server*, then get
+;;  ;; automatically switch to JSB-CSS style using jsbeautify-css as formatter
+;;  (after-load 'css-mode
+;;    (add-hook 'css-mode-hook
+;;          (lambda()
+;;            (js-format-setup "jsb-css"))))
+
+;; The style name is from "styles.json" file, you can change the key to any.
+
+;; `js-format-mark-statement` to mark current statement under point (only in `js2-mode').
+
+;; `js-format-region` to try mark current statement, pass it to `js-format-server', then get
 ;;  back the result code to replace the statement.
 
 ;; `js-format-buffer` to format the whole buffer.
@@ -73,10 +83,12 @@
 ;;     (global-set-key (kbd "C-x j j") 'js-format-region)
 ;;     (global-set-key (kbd "C-x j b") 'js-format-buffer)
 
-;; ## Customize format style
+;; ## Add new format style guide
 
-;; You can rewrite `function format(code, cb){}` in *formatter.js* file,
-;;  to customize your style of format.
+;; 1. Create a folder, with name say "my-style"
+;; 2. Add package.json file, to specify an entry file in "main", or will use "index.js" if not specified.
+;; 3. Entry file should have `function format(code, cb){}` exported as a node module.
+;; 4. Add a style name and the folder into "styles.json" file to register the new style.
 
 ;;; Code:
 
@@ -283,7 +295,9 @@ POS-LIST is list of (line column) to restore point after format."
                              (when (and (stringp result) (not (string= result "")))
                                (message "[js-format] setup result:\n%s" result))))))
     (let ((inhibit-message t))
-      (js-format-http-request local-done (concat js-format-server "/setup/" style)))))
+      (js-format-http-request local-done (concat js-format-server "/setup/" style))))
+  ;; return active style
+  style)
 
 (defun js-format-exit ()
   "Exit js-format node server."

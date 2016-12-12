@@ -1,7 +1,11 @@
 # js-format.el
-Format javascript code using node server.
+Emacs package for format or transform code style using different javascript formatter (standard, jsbeautify, esformatter, etc.)
 
-Send code to local node server to format its style, using [standard](http://standardjs.com)
+Send region or buffer to a format server (will setup localhost:58000 by default), with below formatters:
+
+ - [standard](http://standardjs.com)  # **zero** config
+ - [jsbeautify](https://github.com/beautify-web/js-beautify)  # **little** config
+ - [esformatter](https://github.com/millermedeiros/esformatter)  # **total** config
 
 ## Install
 
@@ -27,17 +31,28 @@ Send code to local node server to format its style, using [standard](http://stan
     (require 'js-format)
     ```
 
-3. It should auto setup for the first time of use, but you can setup using below:
-
-    `npm install` (stored in `js-format-setup-command` var)
-
-    from **js-format folder** to install npm dependencies.
+3. It should auto setup for the first time of use, according to different style package's setup command.
 
 ## Usage
 
-- `js-format-mark-statement` to mark current statement under point.
+- `js-format-setup` to switch and setup style (default value: `"standard"`).
 
-- `js-format-region` to mark current statement, pass it to *node server*, then get
+To make different mode using different format style, you can add below:
+
+``` emacs-lisp
+;; automatically switch to JSB-CSS style using jsbeautify-css as formatter
+(after-load 'css-mode
+  (add-hook 'css-mode-hook
+            (lambda()
+              (js-format-setup "jsb-css"))))
+```
+
+The **style name** is from **styles.json** key, you can change the key to any name.
+
+
+- `js-format-mark-statement` to mark current statement under point (only in `js2-mode`).
+
+- `js-format-region` to try mark current statement, pass it to `js-format-server`, then get
  back the result code to replace the statement.
 
 - `js-format-buffer` to format the whole buffer.
@@ -48,7 +63,9 @@ You may also want to bind above func to keys:
     (global-set-key (kbd "C-x j j") 'js-format-region)
     (global-set-key (kbd "C-x j b") 'js-format-buffer)
 
-## Customize format style
+## Add new format style guide
 
-You can rewrite `format(code, cb)` function in *formatter.js* file,
- to customize your style of format.
+   1. Create a folder, with name say "my-style"
+   2. Add package.json file, to specify an entry file in "main", or will use "index.js" if not specified.
+   3. Entry file should have `function format(code, cb){}` exported as a node module.
+   4. Add a style name and the folder into "styles.json" file to register the new style.
