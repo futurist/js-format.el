@@ -15,6 +15,15 @@ function is (object, type) {
   return {}.toString.call(object) === '[object ' + type + ']'
 }
 
+function send(res, ...args) {
+	if(res.finished){
+		console.log('[response] already sent, the msg:', args)
+	} else {
+		console.log('[response] with msg:', args)
+		res.end(args.join(''))
+	}
+}
+
 const server = http.createServer((req, res) => {
   let bodyString = ''
   const timeoutFn = withErrSign => socket => {
@@ -29,12 +38,12 @@ const server = http.createServer((req, res) => {
 			// delete styleObj.setupProc
 			msg = ' But setup process still run in background.'
     }
-    res.end(sign + 'js-format server request timeout.' + msg)
+    send(res, sign, 'js-format server request timeout.', msg)
   }
   req.resume()
   res.writeHead(200, {'Content-Type': 'text/plain'})
   if (req.url == '/') {
-    return res.end('js-format server')
+    return send(res, 'js-format server')
   }
 	// segments length should > 1
   const segments = req.url.split('/')
@@ -49,7 +58,7 @@ const server = http.createServer((req, res) => {
   if (style) {
     styleObj = styles[style]
     if (!styleObj || typeof styleObj !== 'object') {
-      return res.end(errorsign + 'there\'s no style configed: "' + style + '"')
+      return send(res, errorsign, 'there\'s no style configed: "', style, '"')
     }
 		// style base folder
     styleFolder = styleObj.folder || style
@@ -68,21 +77,21 @@ const server = http.createServer((req, res) => {
 		// should return one status above
 		// the caller MUST check styleObj.status result
 		if(/^setting up/.test(styleObj.status)) {
-			return res.end('"'+style+'"' + ' already in status: ' + styleObj.status)
+			return send(res, '"', style, '"', ' already in status: ', styleObj.status)
 		}
     console.log('setting up', style, styleObj.status)
     const sign = withErrSign ? errorsign : ''
     try {
       styleObj.formatter = require(styleEntry)
       styleObj.status = 'valid'
-			if(!withErrSign) res.end('"'+style+'"' + ' now is the active formatter.')
+			if(!withErrSign) send(res, '"', style, '"', ' now is the active formatter.')
 			// in POST formatter, res.end cannot be called
 			// res.end should be called for formatting code
     } catch (err) {
 			// check err type
       if (err.code !== 'MODULE_NOT_FOUND') {
         styleObj.status = 'invalid'
-        return res.end(JSON.stringify(err))
+        return send(res, JSON.stringify(err))
       }
 			// error is module_not_found, run npm setup
 			const command = styleSetup.command || 'npm install'
@@ -101,10 +110,10 @@ const server = http.createServer((req, res) => {
 				// response timeout already?
         if (res.finished) return console.log('setup finished with request timeout')
         if (err) {
-          return res.end(sign + '"'+style+'"' + command + ' error \n' + JSON.stringify(err))
+          return send(res, sign + '"'+style+'"' + command + ' error \n' + JSON.stringify(err))
         }
         // res.end(sign + command + ' result:\n[stdout]:\n' + stdout + '\n[stderr]:\n' + stderr)
-				res.end(sign + '"'+style+'"' + command + ' setup succeed, the fomatter is ready.' )
+				send(res, sign + '"'+style+'"' + command + ' setup succeed, the fomatter is ready.' )
       })
     }
   }
@@ -117,7 +126,7 @@ const server = http.createServer((req, res) => {
       if (!styleObj.status) setupStyle(true)
 			// formatter is not valid, halt
       if (styleObj.status != 'valid') {
-        if (!res.finished) res.end(errorsign + '"' + style + '"' + ' is in status: ' + styleObj.status)
+        if (!res.finished) send(res, errorsign + '"' + style + '"' + ' is in status: ' + styleObj.status)
         return console.log(style, 'formatter invalid')
       }
 			// styleObj.formatter now available
@@ -133,8 +142,8 @@ const server = http.createServer((req, res) => {
       styleObj.formatter(code, (err, result) => {
         console.log(err, result)
         if (res.finished) return console.log('timeout, but result is', result)
-        if (err) res.end(errorsign + JSON.stringify(err))
-        else res.end(result)
+        if (err) send(res, errorsign + JSON.stringify(err))
+        else send(res, result)
       })
     })
   }
@@ -142,15 +151,15 @@ const server = http.createServer((req, res) => {
     console.log('GET', req.url, styleFolder, segments)
     switch (segments[1]) {
     case 'setup':
-      if (!styleFolder) return res.end('no style configured')
+      if (!styleFolder) return send(res, 'no style configured')
       setupStyle(false)
       if (styleObj.status == 'valid') {
-        res.end('')
+        send(res, '')
       }
       break
     case 'exit':
       console.log('exit now')
-      res.end('')
+			send(res, '')
       Object.keys(styles).forEach(style => {
         const obj = styles[style]
         if (obj && obj.setupProc) {
@@ -163,10 +172,10 @@ const server = http.createServer((req, res) => {
       }, 300)
       break
     case 'getport':
-      res.end(port + '')
+      send(res, port + '')
       break
     default:
-      res.end('undefined action', req.url)
+      send(res, 'undefined action', req.url)
     }
   }
 }).listen(port, function () {
