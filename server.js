@@ -38,15 +38,54 @@ const server = http.createServer((req, res) => {
 		}
 		// style base folder
 		styleFolder = styleObj.folder || style
-		styleEntry = styleObj.entry || ''
+		styleEntry = './' + styleFolder + '/' + (styleObj.entry || '')
+	}
+
+	const setupStyle = function (withErrSign) {
+		// status list [valid, invalid, setup]
+		// should return one status above
+		// the caller MUST check styleObj.status result
+		console.log('setting up', style)
+		const sign = withErrSign ? errorsign : ''
+		try {
+			styleObj.formatter = require(styleEntry)
+			styleObj.status = 'valid'
+		} catch(err) {
+			// check err type
+			if(err.code !== 'MODULE_NOT_FOUND') {
+				styleObj.status = 'invalid'
+				return res.end(JSON.stringify(err))
+			}
+			// error is module_not_found, run npm install
+			const command = styleObj.setup || 'npm install'
+			console.log('setup', style, 'using', command)
+			// 1 min install
+			res.setTimeout(styleObj.setupTimeout || 60e3, timeoutFn)
+			styleObj.status = 'setting-up'
+			const child = exec(command, {cwd: path.join(__dirname, styleFolder)}, function(err, stdout, stderr) {
+				console.log(err, stdout, stderr)
+				// now should can safely require
+				styleObj.formatter = require(styleEntry)
+				// response timeout already?
+				if(res.finished) return console.log('setup finished with request timeout')
+				if(err) {
+					return res.end(sign + command + ' error \n' + JSON.stringify(err))
+				}
+				res.end(sign + command + ' result:\n[stdout]:\n'+stdout+'\n[stderr]:\n'+stderr)
+			})
+		}
 	}
 
   if (req.method == 'POST' && segments[1]=='format' && styleFolder) {
-		let format
-		try {
-			format = styleObj.formatter = require('./' + styleFolder + '/' + styleEntry )
-		} catch(err) {
-			return res.end(errorsign + 'cannot require formatter for '+style+', maybe it\'s in setup process? If not, please run `js-format-setup\'')
+		if(typeof styleObj.formatter != 'function') {
+			// status unknow, get status using setupStyle
+			if(!styleObj.status) setupStyle(true)
+			// formatter is not valid, halt
+			if(styleObj.status != 'valid') {
+				if(!res.finished) res.end(errorsign + '"'+style+'"' + ' is in status: ' + styleObj.status)
+				return console.log(style, 'formatter invalid')
+			}
+			// styleObj.formatter now available
 		}
     req.on('data', function (data) {
 			bodyString += data
@@ -56,7 +95,7 @@ const server = http.createServer((req, res) => {
       let code = bodyString || ''
       // console.log(bodyString)
       code = new Buffer(code, 'base64').toString()
-			format(code, (err, result) => {
+			styleObj.formatter(code, (err, result) => {
 				console.log(err, result)
 				if(res.finished) return console.log('timeout, but result is', result)
 				if (err) res.end(errorsign + JSON.stringify(err))
@@ -66,34 +105,14 @@ const server = http.createServer((req, res) => {
   }
   if (req.method == 'GET') {
     console.log('GET', req.url, styleFolder, segments)
-		if(segments[1]=='setup' && styleFolder) {
-			console.log('setting up', style)
-			try {
-				styleObj.formatter = require('./' + styleFolder + '/' + styleEntry)
-				res.end('completed with style: '+ style)
-			} catch(err) {
-				// check err type
-				if(err.code !== 'MODULE_NOT_FOUND') return res.end(JSON.stringify(err))
-				// error is module_not_found, run npm install
-				const command = query.command || 'cnpm install'
-				console.log('setup', style, 'using', command)
-				// 1 min install
-				res.setTimeout(query.timeout || 60e3, timeoutFn)
-				const child = exec(command, {cwd: path.join(__dirname, styleFolder)}, function(err, stdout, stderr) {
-					console.log(err, stdout, stderr)
-					// now should can safely require
-					styleObj.formatter = require('./' + styleFolder + '/' + styleEntry)
-					// response timeout already?
-					if(res.finished) return
-					if(err) {
-						return res.end(command + ' error \n' + JSON.stringify(err))
-					}
-					res.end(command + ' result:\n[stdout]:\n'+stdout+'\n[stderr]:\n'+stderr)
-				})
-			}
-			return
-		}
 		switch (segments[1]) {
+		case 'setup':
+			if(!styleFolder) return res.end('no style configured')
+			setupStyle()
+			if(styleObj.status == 'valid') {
+				res.end('')
+			}
+			break
 		case 'exit':
 			console.log('exit now')
 			res.end('')
