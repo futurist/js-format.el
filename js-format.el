@@ -319,9 +319,10 @@ RETURN the current active style."
     (setq js-format-server server))
   (setq style js-format-style)
   (unless style
-    (error "No style specified."))
+    (error "No style specified for js-format."))
   ;; (message "[js-format] \"%s\" setup in background, plesae try format after that." style)
-  (let (callback local-done)
+  (let ((show-msg (called-interactively-p 'interactive))
+        callback local-done)
     (setf callback #'(lambda()
                        (js-format-setup style server)))
     (setf local-done #'(lambda(err)
@@ -330,7 +331,7 @@ RETURN the current active style."
                            (let ((result (prog2 (search-forward "\n\n" nil t)
                                              (buffer-substring (point) (point-max)))))
                              (when (and (stringp result) (not (string= result "")))
-                               (when (called-interactively-p 'interactive)
+                               (when show-msg
                                  (message "[js-format] setup result:\n%s" result)))))))
     (let ((inhibit-message t))
       (js-format-http-request local-done (concat (or js-format-server js-format-default-server) "/setup/" style))))
