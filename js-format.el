@@ -177,7 +177,9 @@ Will avoid mark non-formattable node when SKIP-NON-STATEMENT is non-nil."
         start)
     (goto-char (point-min))
     ;; skip # line for cli.js
-    (while (and (not (eobp)) (looking-at-p "\\s *\#")) (forward-line 1))
+    (when js2-mode-ast
+      ;; skip server side script #! line only in js2-mode
+      (while (and (not (eobp)) (looking-at-p "\\s *\#")) (forward-line 1)))
     (skip-chars-forward "\r\n[:blank:]")
     (setq start (point))
     (save-excursion

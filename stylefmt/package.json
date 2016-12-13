@@ -1,0 +1,16 @@
+{
+  "name": "js-format-stylefmt",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "postcss": "^5.2.6",
+    "postcss-scss": "^0.4.0",
+    "stylefmt": "^5.0.2"
+  }
+}
