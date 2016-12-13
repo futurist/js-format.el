@@ -212,7 +212,8 @@ POS-LIST is list of (line column) to restore point after format."
                    (js-format-mark-statement t))
                  (list (region-beginning) (region-end) current-prefix-arg nil)))
   (while (not js-format-style)
-    (call-interactively 'js-format-setup))
+    (let ((inhibit-message t))
+      (call-interactively 'js-format-setup)))
   (save-excursion
     (let ((kill-ring nil)
           (cur-buffer (buffer-name))
@@ -251,7 +252,7 @@ POS-LIST is list of (line column) to restore point after format."
                       (call-interactively 'indent-for-tab-command)
                       ;; try to restore previous position
                       (when pos-list
-                        (deactivate-mark t)
+                        (deactivate-mark nil)
                         (goto-line (car pos-list))
                         (move-to-column (car (cdr pos-list)) nil)))))))
       (js-format-run result get-formatted))))
@@ -320,8 +321,7 @@ RETURN the current active style."
   (setq style js-format-style)
   (unless style
     (error "No style specified for js-format."))
-  (let ((show-msg (called-interactively-p 'interactive))
-        callback local-done)
+  (let (callback local-done)
     (message "[js-format] \"%s\" setup in background, plesae try format after that." style)
     (setf callback #'(lambda()
                        (js-format-setup style server)))
@@ -331,8 +331,7 @@ RETURN the current active style."
                            (let ((result (prog2 (search-forward "\n\n" nil t)
                                              (buffer-substring (point) (point-max)))))
                              (when (and (stringp result) (not (string= result "")))
-                               (when show-msg
-                                 (message "[js-format] setup result:\n%s" result)))))))
+                               (message "[js-format] setup result:\n%s" result))))))
     (let ((inhibit-message t))
       (js-format-http-request local-done (concat (or js-format-server js-format-default-server) "/setup/" style))))
   ;; return active style
