@@ -37,6 +37,7 @@
 ;;  - [standard](http://standardjs.com)  # zero config
 ;;  - [jsbeautify](https://github.com/beautify-web/js-beautify)  # little config
 ;;  - [esformatter](https://github.com/millermedeiros/esformatter)  # total config
+;;  - [stylefmt](https://github.com/morishitter/stylefmt)  # css
 
 ;; ## Install
 
@@ -59,7 +60,8 @@
 
 ;; After `(require 'js-format)`, below function can be used:
 
-;; `js-format-setup` to switch and setup style (default value: `"standard"`).
+;; `js-format-setup` to switch and setup style (buffer local).
+;; With C-u prefix, you can also setup the server (buffer local).
 ;; To make different mode using different format style, you can add below:
 
 ;;  ;; automatically switch to JSB-CSS style using jsbeautify-css as formatter
@@ -82,6 +84,7 @@
 ;;     (global-set-key (kbd "M-,") 'js-format-mark-statement)
 ;;     (global-set-key (kbd "C-x j j") 'js-format-region)
 ;;     (global-set-key (kbd "C-x j b") 'js-format-buffer)
+;;     (global-set-key (kbd "C-x j s") 'js-format-setup)
 
 ;; ## Add new format style guide
 
@@ -112,11 +115,14 @@
 (defvar js-format-proc-name "JSFORMAT"
   "Process name of NodeJS.")
 
-(defvar js-format-style "standard"
+(defvar js-format-style nil
   "The js-format style to use.")
 
-(defvar js-format-server "http://localhost:58000"
-  "Saved host for every connecting to format string.")
+(defvar js-format-default-server "http://localhost:58000"
+  "Global default format server, when `js-format-server' is nil, this value will be used.")
+
+(defvar js-format-server nil
+  "Format server for each buffer locally to format string.")
 
 (progn
   (make-variable-buffer-local 'js-format-style)
@@ -129,10 +135,7 @@
     (file-name-directory (file-truename script-file)))
   "Root folder of js-format.")
 
-(defvar js-format-setup-command "npm install"
-  "Command to install node dependencies.")
-
-(defvar js-format-command
+(defvar js-format-start-command
   (let ((bin-file (expand-file-name "./server.js" js-format-folder)))
     (cons (or (executable-find "node")
               "node")
@@ -206,6 +209,8 @@ POS-LIST is list of (line column) to restore point after format."
                  (when (not (use-region-p))
                    (js-format-mark-statement t))
                  (list (region-beginning) (region-end) current-prefix-arg nil)))
+  (unless js-format-style
+    (error "No js-format-style specified, run `js-format-setup' first."))
   (save-excursion
     (let ((kill-ring nil)
           (cur-buffer (buffer-name))
@@ -262,14 +267,14 @@ POS-LIST is list of (line column) to restore point after format."
                      (setf callback nil)
                      (funcall runner)))
     (setf runner #'(lambda()
-                     (setq server (concat js-format-server "/format/" js-format-style))
+                     (setq server (concat (or js-format-server js-format-default-server) "/format/" js-format-style))
                      ;; using backquote to quote the value of data
                      (js-format-http-request local-done server "POST" `,data)))
     (funcall runner)))
 
 (defun js-format-start-server (cb-success)
   "Start node server when needed, call CB-SUCCESS after start succeed."
-  (let* ((cmd js-format-command)
+  (let* ((cmd js-format-start-command)
          (proc (apply #'start-process js-format-proc-name nil cmd))
          (all-output ""))
     (set-process-query-on-exit-flag proc nil)
@@ -289,23 +294,23 @@ POS-LIST is list of (line column) to restore point after format."
     ;; monitor startup events
     (set-process-sentinel proc #'(lambda (proc _event)
                                    (when (eq (process-status proc) 'exit)
-                                     (if (not (string-match "Cannot find module" all-output))
-                                         (message "js-format: %s" (concat "Could not start node server\n" all-output))
-                                       (message "Js-format now running `%s` in folder '%s', please wait..." js-format-setup-command js-format-folder)
-                                       (let ((default-directory js-format-folder) result)
-                                         (setq result (shell-command-to-string js-format-setup-command))
-                                         (if (file-exists-p (expand-file-name "node_modules/" js-format-folder))
-                                             (js-format-start-server cb-success)
-                                           (message "%s\n`%s` failed, goto folder %s, to manually install.\n\n" result js-format-setup-command js-format-folder)))))))))
+                                     (message "js-format: %s" (concat "Could not start node server\n" all-output)))))))
 
-(defun js-format-setup (&optional style)
+(defun js-format-setup (&optional style server)
   "Switch to and setup the active format style to STYLE.
-If style is empty or nil, call the style's setup command to setup.
+If STYLE changed, will call the style's setup command to setup.
+If with C-u, will prompt to set `js-format-server'.
 RETURN the current active style."
-  (interactive (list (read-string "js-format style: ")))
+  (interactive (list
+                (read-string "js-format style: ")
+                (when current-prefix-arg
+                    (read-string "js-format server: " js-format-server))))
   (unless (or (not (stringp style))
               (string= "" style))
     (setq js-format-style style))
+  (unless (or (not (stringp server))
+              (string= "" server))
+    (setq js-format-server server))
   (setq style js-format-style)
   (message "[js-format] \"%s\" setup in background, plesae try format after that." style)
   (let (callback local-done)
@@ -319,14 +324,14 @@ RETURN the current active style."
                              (when (and (stringp result) (not (string= result "")))
                                (message "[js-format] setup result:\n%s" result))))))
     (let ((inhibit-message t))
-      (js-format-http-request local-done (concat js-format-server "/setup/" style))))
+      (js-format-http-request local-done (concat (or js-format-server js-format-default-server) "/setup/" style))))
   ;; return active style
   style)
 
 (defun js-format-exit ()
   "Exit js-format node server."
   (interactive)
-  (js-format-http-request '= (concat js-format-server "/exit")))
+  (js-format-http-request '= (concat (or js-format-server js-format-default-server) "/exit")))
 
 (defun js-format-http-request (callback url &optional method data cbargs)
   "CALLBACK after request URL using METHOD (default is GET), with DATA.

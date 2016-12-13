@@ -58,7 +58,7 @@ const server = http.createServer((req, res) => {
   if (style) {
     styleObj = styles[style]
     if (!styleObj || typeof styleObj !== 'object') {
-      return send(res, errorsign, 'there\'s no style configed: "', style, '"')
+      return send(res, req.method=='POST' ? errorsign : '', 'there\'s no style configed: "', style, '"')
     }
 		// style base folder
     styleFolder = styleObj.folder || style
