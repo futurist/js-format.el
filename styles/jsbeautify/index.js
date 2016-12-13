@@ -1,4 +1,4 @@
-const { js_beautify:beautify } = require('js-beautify')
+const { js_beautify: beautify } = require('js-beautify')
 const style = require('./style')
 
 /**
@@ -7,8 +7,8 @@ const style = require('./style')
  * @param {function} cb callback to call when format finished: (err, out)->any
  * @returns {any}
  */
-function format(code, cb) {
-	cb(null, beautify(code, style))
+function format (code, cb) {
+  cb(null, beautify(code, style))
 }
 
 module.exports = format
