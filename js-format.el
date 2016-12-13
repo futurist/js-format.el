@@ -276,34 +276,35 @@ POS-LIST is list of (line column) to restore point after format."
 
 (defun js-format-start-server (cb-success)
   "Start node server when needed, call CB-SUCCESS after start succeed."
-  (let* ((cmd js-format-start-command)
-         (proc (apply #'start-process js-format-proc-name nil cmd))
-         (all-output ""))
-    (set-process-query-on-exit-flag proc nil)
-    ;; monitor startup outputs
-    (set-process-filter proc
-                        #'(lambda (proc output)
-                            (if (and (not (string-match "Listening on port \\([0-9][0-9]*\\)" output)))
-                                ;; it it's failed start server, log all message
-                                (setf all-output (concat all-output output))
-                              (set-process-filter proc nil)
-                              (funcall cb-success)
-                              ;; monitor exit events
-                              (set-process-sentinel proc #'(lambda (proc event)
-                                                             (when (eq (process-status proc) 'exit)
-                                                               (message "js-format server exit %s" event))))
-                              (message "js-format server start succeed, quit with `js-format-exit'"))))
-    ;; monitor startup events
-    (set-process-sentinel proc #'(lambda (proc _event)
-                                   (when (eq (process-status proc) 'exit)
-                                     (message "js-format: %s" (concat "Could not start node server\n" all-output)))))))
+  (unless (get-process js-format-proc-name)
+    (let* ((cmd js-format-start-command)
+           (proc (apply #'start-process js-format-proc-name nil cmd))
+           (all-output ""))
+      (set-process-query-on-exit-flag proc nil)
+      ;; monitor startup outputs
+      (set-process-filter proc
+                          #'(lambda (proc output)
+                              (if (and (not (string-match "Listening on port \\([0-9][0-9]*\\)" output)))
+                                  ;; it it's failed start server, log all message
+                                  (setf all-output (concat all-output output))
+                                (set-process-filter proc nil)
+                                (funcall cb-success)
+                                ;; monitor exit events
+                                ;; (message "js-format server start succeed, quit with `js-format-exit'")
+                                (set-process-sentinel proc #'(lambda (proc event)
+                                                               (when (eq (process-status proc) 'exit)
+                                                                 (message "js-format server exit %s" event)))))))
+      ;; monitor startup events
+      (set-process-sentinel proc #'(lambda (proc _event)
+                                     (when (eq (process-status proc) 'exit)
+                                       (message "js-format: %s" (concat "Could not start node server\n" all-output))))))))
 
 (defun js-format-setup (&optional style server)
   "Switch to and setup the active format style to STYLE.
 If STYLE changed, will call the style's setup command to setup.
 If with C-u, will prompt to set `js-format-server'.
 RETURN the current active style."
-  (interactive (let ((config (json-read-file "styles.json")))
+  (interactive (let ((config (json-read-file (expand-file-name "styles.json" js-format-folder))))
                  (list
                   (ido-completing-read "js-format style: "
                                        (mapcar #'(lambda(v) (symbol-name (car v))) config))
@@ -319,17 +320,18 @@ RETURN the current active style."
   (setq style js-format-style)
   (unless style
     (error "No style specified."))
-  (message "[js-format] \"%s\" setup in background, plesae try format after that." style)
+  ;; (message "[js-format] \"%s\" setup in background, plesae try format after that." style)
   (let (callback local-done)
     (setf callback #'(lambda()
-                       (js-format-setup style)))
+                       (js-format-setup style server)))
     (setf local-done #'(lambda(err)
                          (if err
                              (js-format-start-server callback)
                            (let ((result (prog2 (search-forward "\n\n" nil t)
                                              (buffer-substring (point) (point-max)))))
                              (when (and (stringp result) (not (string= result "")))
-                               (message "[js-format] setup result:\n%s" result))))))
+                               (when (called-interactively-p 'interactive)
+                                 (message "[js-format] setup result:\n%s" result)))))))
     (let ((inhibit-message t))
       (js-format-http-request local-done (concat (or js-format-server js-format-default-server) "/setup/" style))))
   ;; return active style
