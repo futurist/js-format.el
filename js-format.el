@@ -109,14 +109,18 @@
 (require 'js2-mode)
 (require 'url)
 
-(defvar js-format-style "standard"
-  "The js-format style to use.")
-
 (defvar js-format-proc-name "JSFORMAT"
   "Process name of NodeJS.")
 
+(defvar js-format-style "standard"
+  "The js-format style to use.")
+
 (defvar js-format-server "http://localhost:58000"
   "Saved host for every connecting to format string.")
+
+(progn
+  (make-variable-buffer-local 'js-format-style)
+  (make-variable-buffer-local 'js-format-server))
 
 (defvar js-format-folder
   (let ((script-file (or load-file-name
@@ -216,29 +220,31 @@ POS-LIST is list of (line column) to restore point after format."
       (setq result (buffer-substring start end))
       (setf get-formatted
             #'(lambda (formatted)
-              (setq success (not (string-prefix-p errorsign formatted) ))
-              (switch-to-buffer cur-buffer)
-              (if (string= "" formatted)
-                  (message "js-format return nil")
-                (if (not success)
-                    (progn (deactivate-mark)
-                           (when (string-match "\"index\":\\([0-9]+\\)" formatted)
-                             (setq error-pos (+ start (string-to-number (or (match-string 1 formatted) ""))))
-                             (unless not-jump-p  (goto-char error-pos)))
-                           (message "js-format-error[%s]: %s" js-format-style (car (split-string formatted errorsign t))))
-                  (delete-region start end)
-                  (when (string-prefix-p ";" formatted) (setq formatted (substring formatted 1)))
-                  (insert formatted)
-                  (setq end (point))
-                  (let ((inhibit-message t))
-                    (goto-char start)
-                    (set-mark-command nil)
-                    (goto-char end)
-                    (call-interactively 'indent-for-tab-command))
-                  ;; try to restore previous position
-                  (when pos-list
-                    (goto-line (car pos-list))
-                    (move-to-column (car (cdr pos-list)) nil))))))
+                (setq success (not (string-prefix-p errorsign formatted) ))
+                (switch-to-buffer cur-buffer)
+                (if (string= "" formatted)
+                    (message "js-format return nil")
+                  (if (not success)
+                      (progn (deactivate-mark)
+                             (when (string-match "\"index\":\\([0-9]+\\)" formatted)
+                               (setq error-pos (+ start (string-to-number (or (match-string 1 formatted) ""))))
+                               (unless not-jump-p  (goto-char error-pos)))
+                             (message "js-format-error[%s]: %s" js-format-style (car (split-string formatted errorsign t))))
+                    (delete-region start end)
+                    ;; (when (string-prefix-p ";" formatted) (setq formatted (substring formatted 1)))
+                    (insert formatted)
+                    (setq end (point))
+                    ;; inhibit message in Emacs 25
+                    (let ((inhibit-message t))
+                      (push-mark start t t)
+                      (goto-char end)
+                      ;; mimic a TAB key
+                      (call-interactively 'indent-for-tab-command)
+                      ;; try to restore previous position
+                      (when pos-list
+                        (deactivate-mark t)
+                        (goto-line (car pos-list))
+                        (move-to-column (car (cdr pos-list)) nil)))))))
       (js-format-run result get-formatted))))
 
 (defun js-format-run (data done)
