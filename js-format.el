@@ -320,9 +320,9 @@ RETURN the current active style."
   (setq style js-format-style)
   (unless style
     (error "No style specified for js-format."))
-  ;; (message "[js-format] \"%s\" setup in background, plesae try format after that." style)
   (let ((show-msg (called-interactively-p 'interactive))
         callback local-done)
+    (message "[js-format] \"%s\" setup in background, plesae try format after that." style)
     (setf callback #'(lambda()
                        (js-format-setup style server)))
     (setf local-done #'(lambda(err)

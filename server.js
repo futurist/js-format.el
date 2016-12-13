@@ -61,7 +61,7 @@ const server = http.createServer((req, res) => {
       return send(res, req.method=='POST' ? errorsign : '', 'there\'s no style configed: "', style, '"')
     }
 		// style base folder
-    styleFolder = styleObj.folder || style
+    styleFolder = 'styles/' + (styleObj.folder || style)
     styleEntry = './' + styleFolder + '/' + (styleObj.entry || '')
 		stylePkg = require('./' + styleFolder + '/package.json')
 		// for setup: first use root package, then use style package
@@ -116,7 +116,7 @@ const server = http.createServer((req, res) => {
     }
   }
 
-  if (req.method == 'POST' && segments[1] == 'format' && styleFolder) {
+  if (req.method == 'POST' && segments[1] == 'format' && style) {
 		// prevent node died to set a timeout
 		res.setTimeout(timeout, timeoutFn(true))
     if (typeof styleObj.formatter !== 'function') {
@@ -147,7 +147,7 @@ const server = http.createServer((req, res) => {
     console.log('GET', req.url, styleFolder, segments)
     switch (segments[1]) {
     case 'setup':
-      if (!styleFolder) return send(res, 'no style configured')
+      if (!style) return send(res, 'no style configured')
       setupStyle(false)
       if (styleObj.status == 'valid') {
         send(res, '')
