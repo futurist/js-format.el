@@ -6,6 +6,7 @@ Send region or buffer to a format server (will setup localhost:58000 by default)
  - [standard](http://standardjs.com)  # **zero** config
  - [jsbeautify](https://github.com/beautify-web/js-beautify)  # **little** config
  - [esformatter](https://github.com/millermedeiros/esformatter)  # **total** config
+ - [stylefmt](https://github.com/morishitter/stylefmt)  # css formatter
 
 ## Install
 
@@ -40,7 +41,13 @@ Send region or buffer to a format server (will setup localhost:58000 by default)
 To make different mode using different format style, you can add below:
 
 ``` emacs-lisp
-;; automatically switch to JSB-CSS style using jsbeautify-css as formatter
+;; using "standard" as js formatter
+(after-load 'js2-mode
+  (add-hook 'js2-mode-hook
+            (lambda()
+              (js-format-setup "standard"))))
+
+;; using "jsbeautify-css" as css formatter
 (after-load 'css-mode
   (add-hook 'css-mode-hook
             (lambda()
