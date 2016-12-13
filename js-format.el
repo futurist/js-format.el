@@ -111,6 +111,8 @@
 
 (require 'js2-mode)
 (require 'url)
+(require 'json)
+(require 'ido)
 
 (defvar js-format-proc-name "JSFORMAT"
   "Process name of NodeJS.")
@@ -209,8 +211,8 @@ POS-LIST is list of (line column) to restore point after format."
                  (when (not (use-region-p))
                    (js-format-mark-statement t))
                  (list (region-beginning) (region-end) current-prefix-arg nil)))
-  (unless js-format-style
-    (error "No js-format-style specified, run `js-format-setup' first."))
+  (while (not js-format-style)
+    (call-interactively 'js-format-setup))
   (save-excursion
     (let ((kill-ring nil)
           (cur-buffer (buffer-name))
@@ -301,10 +303,13 @@ POS-LIST is list of (line column) to restore point after format."
 If STYLE changed, will call the style's setup command to setup.
 If with C-u, will prompt to set `js-format-server'.
 RETURN the current active style."
-  (interactive (list
-                (read-string "js-format style: ")
-                (when current-prefix-arg
-                    (read-string "js-format server: " js-format-server))))
+  (interactive (let ((config (json-read-file "styles.json")))
+                 (list
+                  (ido-completing-read "js-format style: "
+                                       (mapcar #'(lambda(v) (symbol-name (car v))) config))
+                  (when current-prefix-arg
+                    (read-string "js-format server: "
+                                 (or js-format-server js-format-default-server))))))
   (unless (or (not (stringp style))
               (string= "" style))
     (setq js-format-style style))
@@ -312,6 +317,8 @@ RETURN the current active style."
               (string= "" server))
     (setq js-format-server server))
   (setq style js-format-style)
+  (unless style
+    (error "No style specified."))
   (message "[js-format] \"%s\" setup in background, plesae try format after that." style)
   (let (callback local-done)
     (setf callback #'(lambda()
