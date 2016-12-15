@@ -300,6 +300,7 @@ POS-LIST is list of (line column) to restore point after format."
                                      (when (eq (process-status proc) 'exit)
                                        (message "js-format: %s" (concat "Could not start node server\n" all-output))))))))
 
+;;;###autoload
 (defun js-format-setup (&optional style server)
   "Switch to and setup the active format style to STYLE.
 If STYLE changed, will call the style's setup command to setup.
@@ -337,6 +338,7 @@ RETURN the current active style."
   ;; return active style
   style)
 
+;;;###autoload
 (defun js-format-exit ()
   "Exit js-format node server."
   (interactive)
