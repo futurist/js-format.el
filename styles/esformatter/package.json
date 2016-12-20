@@ -9,8 +9,8 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "esformatter": "^0.10.0",
-    "esformatter-braces": "^1.2.1",
-    "esformatter-var-each": "^2.1.0"
+    "esformatter": "*",
+    "esformatter-braces": "*",
+    "esformatter-var-each": "*"
   }
 }

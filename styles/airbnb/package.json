@@ -10,7 +10,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "babel-core": "^6.21.0",
-    "babel-preset-airbnb": "^2.1.1"
+    "babel-core": "*",
+    "babel-preset-airbnb": "*"
   }
 }
