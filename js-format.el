@@ -177,17 +177,17 @@ Will avoid mark non-formattable node when SKIP-NON-STATEMENT is non-nil."
 (defun js-format-buffer ()
   "Format current buffer."
   (interactive)
-  (let ((col (current-column))
-        (line (line-number-at-pos))
-        start)
-    (goto-char (point-min))
-    ;; skip # line for cli.js
-    (when js2-mode-ast
-      ;; skip server side script #! line only in js2-mode
-      (while (and (not (eobp)) (looking-at-p "\\s *\#")) (forward-line 1)))
-    (skip-chars-forward "\r\n[:blank:]")
-    (setq start (point))
-    (save-excursion
+  (save-excursion
+    (let ((col (current-column))
+          (line (line-number-at-pos))
+          start)
+      (goto-char (point-min))
+      ;; skip # line for cli.js
+      (when js2-mode-ast
+        ;; skip server side script #! line only in js2-mode
+        (while (and (not (eobp)) (looking-at-p "\\s *\#")) (forward-line 1)))
+      (skip-chars-forward "\r\n[:blank:]")
+      (setq start (point))
       (js-format-region start (point-max) nil `(,line ,col)))))
 
 ;;;###autoload
