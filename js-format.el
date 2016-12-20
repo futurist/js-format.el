@@ -1,14 +1,14 @@
 ;;; js-format.el --- Format or transform code style using NodeJS server with different javascript formatter  -*- lexical-binding: t; -*-
 
 ;; Filename: js-format.el
-;; Description: Format or transform code style using NodeJS server with different javascript formatter (standard, jsbeautify, esformatter, etc.)
+;; Description: Format or transform code style using NodeJS server with different javascript formatter (standard, jsbeautify, esformatter, airbnb, etc.)
 ;; Author: James Yang <jamesyang999@gmail.com>
 ;; Copyright (C) 2016, James Yang, all rights reserved.
 ;; Time-stamp: <2016-12-12 19:07:15 James Yang>
 ;; Created: 2016-12-05 13:57:46
 ;; Version: 0.1.0
 ;; URL: http://github.com/futurist/js-format.el
-;; Keywords: js, javascript, format, standard, jsbeautify, esformatter
+;; Keywords: js, javascript, format, standard, jsbeautify, esformatter, airbnb
 ;; Package-Requires: ((emacs "24.1") (js2-mode "20101228"))
 ;;
 
@@ -37,6 +37,7 @@
 ;;  - [standard](http://standardjs.com)  # zero config
 ;;  - [jsbeautify](https://github.com/beautify-web/js-beautify)  # little config
 ;;  - [esformatter](https://github.com/millermedeiros/esformatter)  # total config
+;;  - [airbnb](https://github.com/airbnb/babel-preset-airbnb)  # **Airbnb** style formatter
 ;;  - [stylefmt](https://github.com/morishitter/stylefmt)  # css
 
 ;; ## Install
