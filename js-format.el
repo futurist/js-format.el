@@ -169,6 +169,7 @@ Will avoid mark non-formattable node when SKIP-NON-STATEMENT is non-nil."
     (setq beg (and parent (js2-node-abs-pos parent)))
     (setq end (and parent (js2-node-abs-end parent)))
     (when (and beg end (/= (- end beg) (- (point-max) (point-min))))
+      (set-mark-command nil)
       (transient-mark-mode '(4))
       (goto-char beg)
       (set-mark-command nil)
